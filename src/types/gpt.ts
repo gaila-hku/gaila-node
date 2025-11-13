@@ -8,6 +8,7 @@ export interface GptLog {
   user_ask_time: number;
   gpt_response_time?: number;
   prompt_category?: string;
+  is_structured: boolean;
 }
 
 export interface GptResponse {
@@ -21,6 +22,7 @@ export interface GptResponse {
       message: {
         role: string;
         content: string | null;
+        parsed?: JSON;
         tool_calls?: {
           id: string;
           type: 'function';

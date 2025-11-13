@@ -16,7 +16,7 @@ import { fetchLatestSubmissionsByAssignmentIdStudentId } from 'models/assignment
 import { fetchClassesByIds } from 'models/classModel';
 import { fetchUsersByIds } from 'models/userModel';
 
-import { AssignmentView } from 'types/assignment';
+import { Assignment, AssignmentView } from 'types/assignment';
 import { Class, ClassOption } from 'types/class';
 import { AuthorizedRequest } from 'types/request';
 import { User, UserOption } from 'types/user';
@@ -63,7 +63,7 @@ export const getAssignmentListing = async (
     });
   }
 
-  const resObj = { page, limit, value: [] as Class[] };
+  const resObj = { page, limit, value: [] as Assignment[] };
 
   if (req.user?.role === 'student') {
     resObj.value = await fetchAssignmentsByStudentId(

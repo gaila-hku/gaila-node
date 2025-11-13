@@ -8,7 +8,7 @@ import {
   AssignmentEnrollment,
   AssignmentStageCreatePayload,
 } from 'types/assignment';
-import { Class, ClassTeacher } from 'types/class';
+import { ClassTeacher } from 'types/class';
 
 type AssignmentFilterType = {
   search?: string;
@@ -23,8 +23,8 @@ export const fetchAssignmentsByTeacherId = async (
   filter: AssignmentFilterType,
   sort: string | undefined,
   sortOrder: 'asc' | 'desc' | undefined,
-): Promise<Class[]> => {
-  const [classRows] = await pool.query(
+): Promise<Assignment[]> => {
+  const [assignmentRows] = await pool.query(
     `
     SELECT * FROM (
       SELECT
@@ -43,7 +43,7 @@ export const fetchAssignmentsByTeacherId = async (
       LIMIT ? OFFSET ?`,
     [teacherId, limit, (page - 1) * limit],
   );
-  return classRows as Class[];
+  return assignmentRows as Assignment[];
 };
 
 export const fetchAssignmentsCountByTeacherId = async (
@@ -78,8 +78,8 @@ export const fetchAssignmentsByStudentId = async (
   filter: AssignmentFilterType,
   sort: string | undefined,
   sortOrder: 'asc' | 'desc' | undefined,
-): Promise<Class[]> => {
-  const [classStudentRows] = await pool.query(
+): Promise<Assignment[]> => {
+  const [assignmentRows] = await pool.query(
     `SELECT * from (
       SELECT
         a.*,
@@ -107,7 +107,7 @@ export const fetchAssignmentsByStudentId = async (
     `,
     [studentId, studentId, studentId, limit, (page - 1) * limit],
   );
-  return classStudentRows as Class[];
+  return assignmentRows as Assignment[];
 };
 
 export const fetchAssignmentsCountByStudentId = async (
@@ -146,11 +146,11 @@ export const fetchAssignmentsCountByStudentId = async (
 
 export const fetchAssignmentById = async (
   id: number,
-): Promise<Class | null> => {
+): Promise<Assignment | null> => {
   const [rows] = await pool.query('SELECT * FROM assignments WHERE id = ?', [
     id,
   ]);
-  const result = rows as Class[];
+  const result = rows as Assignment[];
   return result.length > 0 ? result[0] : null;
 };
 
@@ -173,6 +173,17 @@ export const fetchAssignementEnrollmentsById = async (
   );
   const result = targetRows as AssignmentEnrollment[];
   return result;
+};
+
+export const fetchRubricsByAssignmentId = async (
+  id: number,
+): Promise<string | null> => {
+  const [rows] = await pool.query(
+    'SELECT rubrics FROM assignments WHERE id = ?',
+    [id],
+  );
+  const result = rows as { rubrics: string }[];
+  return result.length > 0 ? result[0].rubrics : null;
 };
 
 export const saveNewAssignment = async (
