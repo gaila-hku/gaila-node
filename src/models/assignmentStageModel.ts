@@ -10,7 +10,7 @@ export const fetchAssignmentStagesWithToolsByAssignmentId = async (
 ): Promise<AssignmentStageWithTools[]> => {
   const [stageRows] = await pool.query(
     `
-    SELECT id, assignment_id, stage_type, enabled
+    SELECT id, assignment_id, stage_type, enabled, order_index
     FROM assignment_stages
     WHERE assignment_id = ?
     ORDER BY order_index
@@ -43,4 +43,18 @@ export const fetchAssignmentStagesWithToolsByAssignmentId = async (
         enabled: tool.enabled,
       })),
   })) as AssignmentStageWithTools[];
+};
+
+export const fetchTeacherGradingToolIdByAssignmentId = async (
+  assignmentId: number,
+): Promise<number | null> => {
+  const [rows] = await pool.query(
+    `
+    SELECT id FROM assignment_tools
+    WHERE assignment_id = ? AND tool_key = 'teacher_grading'
+    `,
+    [assignmentId],
+  );
+  const result = rows as { id: number }[];
+  return result.length > 0 ? result[0].id : null;
 };

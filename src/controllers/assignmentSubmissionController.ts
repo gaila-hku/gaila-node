@@ -1,16 +1,23 @@
 import { Response } from 'express';
 import { isNumber, isString } from 'lodash-es';
+import { saveNewGrading } from 'models/assignmentGradingModel';
+import {
+  fetchAssignmentStagesWithToolsByAssignmentId,
+  fetchTeacherGradingToolIdByAssignmentId,
+} from 'models/assignmentStageModel';
 import {
   fetchLatestSubmissionsByAssignmentIdTeacherId,
   fetchLatestSubmissionsByTeacherId,
   fetchLatestSubmissionsCountByAssignmentIdTeacherId,
   fetchLatestSubmissionsCountByTeacherId,
+  fetchSubmissionsByAssignmentIdAndStudentId,
   saveNewAssignmentSubmission,
 } from 'models/assignmentSubmissionModel';
 import { saveNewTraceData } from 'models/traceDataModel';
 
 import {
   AssignmentRecentSubmissionListingItemResponse,
+  AssignmentSubmissionListingItem,
   AssignmentSubmissionListingItemResponse,
 } from 'types/assignment';
 import { AuthorizedRequest } from 'types/request';
@@ -77,6 +84,58 @@ export const submitAssignment = async (
   }
 };
 
+const convertSubmissionToResponse = (
+  listingItems: AssignmentSubmissionListingItem[],
+): AssignmentSubmissionListingItemResponse[] => {
+  return listingItems.reduce((arr, item) => {
+    const studentItemIndex = arr.findIndex(
+      i =>
+        i.student.id === item.student_id &&
+        i.assignment_id === item.assignment_id,
+    );
+    if (studentItemIndex === -1) {
+      return [
+        ...arr,
+        {
+          assignment_id: item.assignment_id,
+          ...('title' in item ? { title: item.title } : {}),
+          student: {
+            id: item.student_id,
+            username: item.username,
+            first_name: item.first_name || undefined,
+            last_name: item.last_name || undefined,
+          },
+          submissions: [
+            {
+              id: item.id,
+              stage_id: item.stage_id,
+              stage_type: item.stage_type,
+              submitted_at: item.submitted_at,
+              is_final: item.is_final,
+              score: item.score,
+            },
+          ],
+        },
+      ];
+    }
+    arr.splice(studentItemIndex, 1, {
+      ...arr[studentItemIndex],
+      submissions: [
+        ...arr[studentItemIndex].submissions,
+        {
+          id: item.id,
+          stage_id: item.stage_id,
+          stage_type: item.stage_type,
+          submitted_at: item.submitted_at,
+          is_final: item.is_final,
+          score: item.score,
+        },
+      ],
+    });
+    return arr;
+  }, [] as AssignmentSubmissionListingItemResponse[]);
+};
+
 export const getAssignmentSubmissionListing = async (
   req: AuthorizedRequest,
   res: Response,
@@ -128,23 +187,7 @@ export const getAssignmentSubmissionListing = async (
     page,
     filter,
   );
-  resObj.value = listingItems.map(item => ({
-    id: item.id,
-    assignment_id: item.assignment_id,
-    submitted_at: item.submitted_at,
-    is_final: item.is_final,
-    score: item.score,
-    stage: {
-      id: item.stage_id,
-      stage_type: item.stage_type,
-    },
-    student: {
-      id: item.student_id,
-      username: item.username,
-      first_name: item.first_name,
-      last_name: item.last_name,
-    },
-  }));
+  resObj.value = convertSubmissionToResponse(listingItems);
 
   if (parseQueryNumber(req.query.skipCount)) {
     return res.json(resObj);
@@ -201,24 +244,9 @@ export const getRecentSubmissions = async (
     page,
     filter,
   );
-  resObj.value = listingItems.map(item => ({
-    id: item.id,
-    assignment_id: item.assignment_id,
-    title: item.title,
-    submitted_at: item.submitted_at,
-    is_final: item.is_final,
-    score: item.score,
-    stage: {
-      id: item.stage_id,
-      stage_type: item.stage_type,
-    },
-    student: {
-      id: item.student_id,
-      username: item.username,
-      first_name: item.first_name,
-      last_name: item.last_name,
-    },
-  }));
+  resObj.value = convertSubmissionToResponse(
+    listingItems,
+  ) as AssignmentRecentSubmissionListingItemResponse[];
 
   if (parseQueryNumber(req.query.skipCount)) {
     return res.json(resObj);
@@ -234,4 +262,113 @@ export const getRecentSubmissions = async (
 export const getSubmissionDetails = async (
   req: AuthorizedRequest,
   res: Response,
-) => {};
+) => {
+  if (!req.user?.id) {
+    return res
+      .status(401)
+      .json({ error_message: 'User not authenticated', error_code: 401 });
+  }
+
+  const assignmentId = parseQueryNumber(req.query.assignment_id);
+  const studentId = parseQueryNumber(req.query.student_id);
+  if (!isNumber(assignmentId) || !isNumber(studentId)) {
+    return res.status(400).json({
+      error_message: 'Assignment ID and student ID is required',
+      error_code: 400,
+    });
+  }
+
+  // 1. Get submission and assignment details with grade
+  const submissions = await fetchSubmissionsByAssignmentIdAndStudentId(
+    assignmentId,
+    studentId,
+  );
+  const stages =
+    await fetchAssignmentStagesWithToolsByAssignmentId(assignmentId);
+  const teacherGradingToolId =
+    await fetchTeacherGradingToolIdByAssignmentId(assignmentId);
+
+  if (!submissions.length) {
+    return res.status(404).json({ error_message: 'No submission found' });
+  }
+
+  // 2. Calculate plagiarism score
+
+  // 3. Get engagement details (a. last essay edit, b. last chatbot use, c. last dashboard view, d. plagiarism score)
+  // 4. Get last reminders sent
+
+  // 5. Analytics: Tools usage, ChatGPT prompt categories
+
+  return res.json({
+    assignment: {
+      id: submissions[0].assignment_id,
+      title: submissions[0].title,
+      description: submissions[0].description,
+      start_date: submissions[0].start_date,
+      due_date: submissions[0].due_date,
+      type: submissions[0].type,
+      rubrics: submissions[0].rubrics,
+    },
+    stages,
+    student: {
+      id: submissions[0].student_id,
+      username: submissions[0].username,
+      first_name: submissions[0].first_name,
+      last_name: submissions[0].last_name,
+    },
+    teacher_grading_tool_id: teacherGradingToolId,
+    submissions: submissions.map(submission => ({
+      id: submission.id,
+      stage_id: submission.stage_id,
+      stage_type: submission.stage_type,
+      content: submission.content,
+      submitted_at: submission.submitted_at,
+      is_final: submission.is_final,
+      grade: isNumber(submission.overall_score)
+        ? {
+            overall_score: submission.overall_score,
+            overall_feedback: submission.overall_feedback,
+            rubrics_breakdown: submission.rubrics_breakdown,
+            graded_at: submission.graded_at,
+          }
+        : null,
+    })),
+  });
+};
+
+export const gradeAssignment = async (
+  req: AuthorizedRequest,
+  res: Response,
+) => {
+  if (!req.user?.id) {
+    return res
+      .status(401)
+      .json({ error_message: 'User not authenticated', error_code: 401 });
+  }
+
+  const submissionId = parseQueryNumber(req.body.submission_id);
+  const overallScore = parseQueryNumber(req.body.overall_score);
+  const overallFeedback = req.body.overall_feedback;
+  const rubricsBreakdown = req.body.rubrics_breakdown;
+
+  if (!isNumber(submissionId)) {
+    return res
+      .status(400)
+      .json({ error_message: 'Invalid submission ID', error_code: 400 });
+  }
+  if (!isNumber(overallScore)) {
+    return res
+      .status(400)
+      .json({ error_message: 'Invalid score', error_code: 400 });
+  }
+
+  const result = await saveNewGrading(
+    submissionId,
+    overallScore,
+    overallFeedback,
+    rubricsBreakdown,
+    Date.now(),
+    req.user.id,
+  );
+  return res.json(result);
+};

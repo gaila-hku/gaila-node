@@ -413,7 +413,6 @@ export const getAssignmentProgressDetails = async (
     submissions.map(s => s.id),
   );
 
-  // TODO: chatbot detail
   const stages =
     await fetchAssignmentStagesWithToolsByAssignmentId(assignmentId);
 

@@ -200,6 +200,7 @@ export const saveNewAssignment = async (
   enrolledClassIds: number[],
   enrolledStudentIds: number[],
 ): Promise<Assignment | null> => {
+  // 1. Save assignment
   const [insertRows] = await pool.query(
     'INSERT INTO assignments (title, description, due_date, type, instructions, requirements, rubrics, tips, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [
@@ -222,6 +223,7 @@ export const saveNewAssignment = async (
   );
   const result = assignmentRows as Assignment[];
 
+  // 2. Add enrollments
   for (const enrolledClassId of enrolledClassIds) {
     const [teacherRows] = await pool.query(
       'SELECT teacher_id FROM class_teachers WHERE class_id = ?',
@@ -248,6 +250,8 @@ export const saveNewAssignment = async (
     );
   }
 
+  // 3. Add tools
+  await saveNewAssignmentTool(assignmentId, null, 'teacher_grading', true);
   for (const [i, stage] of stages.entries()) {
     const [insertStageRows] = await pool.query(
       'INSERT INTO assignment_stages (assignment_id, stage_type, order_index, enabled) VALUES (?, ?, ?, ?)',

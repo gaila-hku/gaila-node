@@ -60,7 +60,7 @@ const prepareGptRequest = async (
   const { assignment_id: assignmentId, assignment_stage_id: stageId } =
     assignmentTool;
 
-  if (!assignmentId || !stageId) {
+  if (!assignmentId) {
     throw new Error('Invalid assignment tool ID');
   }
 
@@ -80,9 +80,15 @@ const prepareGptRequest = async (
   };
 };
 
-const preapreGptEssay = async (req: AuthorizedRequest, stageId: number) => {
+const preapreGptEssay = async (
+  req: AuthorizedRequest,
+  stageId: number | undefined,
+) => {
   let essay = req.body.essay || '';
   if (!essay && req.user?.role === 'student') {
+    if (!stageId) {
+      throw new Error('Essay not given and assignment stage not found');
+    }
     const latestEssaySubmission = await fetchLatestSubmissionByStageIdStudentId(
       stageId,
       req.user.id,
@@ -112,6 +118,10 @@ export const askGptModel = async (req: AuthorizedRequest, res: Response) => {
       stageId,
       pastMessages,
     } = await prepareGptRequest(req);
+
+    if (!stageId) {
+      throw new Error('Invalid assignment tool ID');
+    }
 
     const essay = await preapreGptEssay(req, stageId);
 
@@ -189,6 +199,10 @@ export const askDictionaryAgent = async (
       pastMessages,
     } = await prepareGptRequest(req);
 
+    if (!stageId) {
+      throw new Error('Invalid assignment tool ID');
+    }
+
     try {
       const userAskTime = Date.now();
       const chatRes = await fetchDictionaryAgentReponse(
@@ -261,6 +275,10 @@ export const askGrammarAgent = async (
       isStructured,
       pastMessages,
     } = await prepareGptRequest(req, { questionUnstructuredOnly: true });
+
+    if (!stageId) {
+      throw new Error('Invalid assignment tool ID');
+    }
 
     const essay = await preapreGptEssay(req, stageId);
 
@@ -340,6 +358,10 @@ export const askAutogradeAgent = async (
       pastMessages,
     } = await prepareGptRequest(req, { questionUnstructuredOnly: true });
 
+    if (req.user?.role === 'student' && !stageId) {
+      throw new Error('Invalid assignment tool ID');
+    }
+
     const essay = await preapreGptEssay(req, stageId);
 
     const rubrics = await fetchRubricsByAssignmentId(assignmentId);
@@ -382,16 +404,18 @@ export const askAutogradeAgent = async (
         isStructured,
       );
 
-      await saveNewTraceData(
-        userId,
-        assignmentId,
-        stageId,
-        'ASK_GPT',
-        JSON.stringify({
-          question: finalQuestion,
-          answer: gptAnswer,
-        }),
-      );
+      if (req.user?.role === 'student') {
+        await saveNewTraceData(
+          userId,
+          assignmentId,
+          stageId as number,
+          'ASK_GPT',
+          JSON.stringify({
+            question: finalQuestion,
+            answer: gptAnswer,
+          }),
+        );
+      }
 
       return res.json(gptLog);
     } catch (e) {

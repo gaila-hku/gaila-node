@@ -2,6 +2,7 @@ import {
   getAssignmentSubmissionListing,
   getRecentSubmissions,
   getSubmissionDetails,
+  gradeAssignment,
   submitAssignment,
 } from 'controllers/assignmentSubmissionController';
 import { Router } from 'express';
@@ -21,5 +22,6 @@ router.get(
   getRecentSubmissions,
 );
 router.get('/view', authorizeRole(['teacher', 'admin']), getSubmissionDetails);
+router.post('/grade', authorizeRole(['teacher', 'admin']), gradeAssignment);
 
 export default router;

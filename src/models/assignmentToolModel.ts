@@ -32,8 +32,8 @@ export const fetchAssignmentToolByAssignmentToolId = async (
 };
 
 export const saveNewAssignmentTool = async (
-  assignmentId: number,
-  stageId: number,
+  assignmentId: number | null,
+  stageId: number | null,
   key: string,
   enabled: boolean,
 ): Promise<void> => {

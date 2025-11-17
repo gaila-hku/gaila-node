@@ -1,3 +1,5 @@
+import { ResultSetHeader } from 'mysql2';
+
 import pool from 'config/db';
 import { AssignmentGrade } from 'types/assignment';
 
@@ -31,4 +33,41 @@ export const fetchLatestGradesBySubmissionIds = async (
     [...submissionIds],
   );
   return rows as AssignmentGrade[];
+};
+
+export const saveNewGrading = async (
+  submission_id: number,
+  overall_score: number,
+  overall_feedback: string | undefined,
+  rubrics_breakdown: string | undefined,
+  graded_at: number | undefined,
+  graded_by: number,
+): Promise<AssignmentGrade> => {
+  const [insertRows] = await pool.query(
+    `
+    INSERT INTO assignment_grades (
+      submission_id, overall_score, overall_feedback, rubrics_breakdown, graded_at, graded_by
+    ) VALUES (?, ?, ?, ?, ?, ?)
+    `,
+    [
+      submission_id,
+      overall_score,
+      overall_feedback || null,
+      rubrics_breakdown || null,
+      graded_at || null,
+      graded_by,
+    ],
+  );
+
+  const insertResult = insertRows as ResultSetHeader;
+  const gradeId = insertResult.insertId;
+  return {
+    id: gradeId,
+    submission_id,
+    overall_score,
+    overall_feedback,
+    rubrics_breakdown,
+    graded_at,
+    graded_by,
+  };
 };

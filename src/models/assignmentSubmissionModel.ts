@@ -4,6 +4,7 @@ import pool from 'config/db';
 import {
   AssignmentRecentSubmissionListingItem,
   AssignmentSubmission,
+  AssignmentSubmissionDetail,
   AssignmentSubmissionListingItem,
 } from 'types/assignment';
 
@@ -93,45 +94,69 @@ export const fetchLatestSubmissionsByTeacherId = async (
 ): Promise<AssignmentRecentSubmissionListingItem[]> => {
   const [rows] = await pool.query(
     `
-    SELECT
-      t.id, t.assignment_id, t.submitted_at, t.is_final,
-      t.title,
-      t.stage_id, t.stage_type,
-      t.score,
-      t.student_id, t.username, t.first_name, t.last_name
+    SELECT t.student_id
     FROM (
       SELECT
-        s.id, s.assignment_id, s.stage_id, s.student_id, s.submitted_at, s.is_final,
-        a.title as title,
-        stages.stage_type as stage_type,
-        ag.score as score,
-        users.username, users.first_name, users.last_name, CONCAT(users.first_name, ' ', users.last_name) as full_name
+        s.student_id, a.title, users.username, CONCAT(users.first_name, ' ', users.last_name) as full_name
       FROM assignment_submissions s
       INNER JOIN (
-        SELECT assignment_id, stage_id, student_id, max(submitted_at) as max_submitted_at
+        SELECT assignment_id, student_id, max(submitted_at) as max_submitted_at
         FROM assignment_submissions
-        GROUP BY assignment_id, stage_id, student_id
+        GROUP BY assignment_id, student_id
       ) latest_submissions
         ON latest_submissions.assignment_id = s.assignment_id
-        AND latest_submissions.stage_id = s.stage_id
         AND latest_submissions.student_id = s.student_id
         AND latest_submissions.max_submitted_at = s.submitted_at
       INNER JOIN assignments a ON s.assignment_id = a.id
-      INNER JOIN (
-        SELECT *
-        FROM assignment_stages
-        WHERE enabled = 1
-      ) stages on stages.id = s.stage_id
       INNER JOIN assignment_teachers at ON s.assignment_id = at.assignment_id AND at.teacher_id = ?
       INNER JOIN users ON s.student_id = users.id
-      LEFT JOIN assignment_grades ag ON ag.submission_id = s.id
+      ORDER BY s.submitted_at DESC
     ) t
     ${filter ? `WHERE full_name LIKE '%${filter}%' OR username LIKE '%${filter}%' OR title LIKE '%${filter}%'` : ''}
     LIMIT ? OFFSET ?
     `,
     [teacherId, limit, (page - 1) * limit],
   );
-  return rows as AssignmentRecentSubmissionListingItem[];
+
+  const studentIdResults = rows as { student_id: number }[];
+  const studentIds = studentIdResults.map(s => s.student_id);
+
+  if (studentIds.length === 0) {
+    return [];
+  }
+
+  const studentIdPlaceholder = studentIds.map(() => '?').join(',');
+  const [detailsRows] = await pool.query(
+    `
+    SELECT
+      s.id, s.assignment_id, s.stage_id, s.student_id, s.submitted_at, s.is_final,
+      a.title as title,
+      stages.stage_type as stage_type,
+      ag.overall_score as score,
+      users.username, users.first_name, users.last_name
+    FROM assignment_submissions s
+    JOIN (
+      SELECT assignment_id, stage_id, student_id, max(submitted_at) as max_submitted_at
+      FROM assignment_submissions
+      GROUP BY assignment_id, stage_id, student_id
+    ) latest_submissions
+      ON latest_submissions.assignment_id = s.assignment_id
+      AND latest_submissions.stage_id = s.stage_id
+      AND latest_submissions.student_id = s.student_id
+      AND latest_submissions.max_submitted_at = s.submitted_at
+    INNER JOIN assignments a ON s.assignment_id = a.id
+    INNER JOIN (
+      SELECT *
+      FROM assignment_stages
+      WHERE enabled = 1
+    ) stages on stages.id = s.stage_id
+    INNER JOIN assignment_teachers at ON s.assignment_id = at.assignment_id AND at.teacher_id = ?
+    INNER JOIN users ON s.student_id = users.id AND s.student_id IN (${studentIdPlaceholder})
+    LEFT JOIN assignment_grades ag ON ag.submission_id = s.id
+    `,
+    [teacherId, ...studentIds],
+  );
+  return detailsRows as AssignmentRecentSubmissionListingItem[];
 };
 
 export const fetchLatestSubmissionsCountByTeacherId = async (
@@ -144,8 +169,6 @@ export const fetchLatestSubmissionsCountByTeacherId = async (
       SELECT
         s.id, s.assignment_id, s.stage_id, s.student_id, s.submitted_at, s.is_final,
         a.title as title,
-        stages.stage_type as stage_type,
-        ag.score as score,
         users.username, users.first_name, users.last_name, CONCAT(users.first_name, ' ', users.last_name) as full_name
       FROM assignment_submissions s
       INNER JOIN (
@@ -158,14 +181,7 @@ export const fetchLatestSubmissionsCountByTeacherId = async (
         AND latest_submissions.student_id = s.student_id
         AND latest_submissions.max_submitted_at = s.submitted_at
       INNER JOIN assignments a ON s.assignment_id = a.id
-      INNER JOIN (
-        SELECT *
-        FROM assignment_stages
-        WHERE enabled = 1
-      ) stages on stages.id = s.stage_id
-      INNER JOIN assignment_teachers at ON s.assignment_id = at.assignment_id AND at.teacher_id = ?
       INNER JOIN users ON s.student_id = users.id
-      LEFT JOIN assignment_grades ag ON ag.submission_id = s.id
     ) t
     ${filter ? `WHERE full_name LIKE '%${filter}%' OR username LIKE '%${filter}%' OR title LIKE '%${filter}%'` : ''}
     `,
@@ -184,42 +200,67 @@ export const fetchLatestSubmissionsByAssignmentIdTeacherId = async (
 ): Promise<AssignmentSubmissionListingItem[]> => {
   const [rows] = await pool.query(
     `
-    SELECT
-      t.id, t.assignment_id, t.submitted_at, t.is_final,
-      t.stage_id, t.stage_type,
-      t.score,
-      t.student_id, t.username, t.first_name, t.last_name
+    SELECT t.student_id
     FROM (
       SELECT
-        s.id, s.assignment_id, s.stage_id, s.student_id, s.submitted_at, s.is_final,
-        stages.stage_type as stage_type,
-        ag.score as score,
-        users.username, users.first_name, users.last_name, CONCAT(users.first_name, ' ', users.last_name) as full_name
+        s.student_id, users.username, CONCAT(users.first_name, ' ', users.last_name) as full_name
       FROM assignment_submissions s
       INNER JOIN (
-        SELECT stage_id, student_id, max(submitted_at) as max_submitted_at
+        SELECT student_id, max(submitted_at) as max_submitted_at
         FROM assignment_submissions
         WHERE assignment_id = ?
-        GROUP BY stage_id, student_id
+        GROUP BY student_id
       ) latest_submissions
-        ON latest_submissions.stage_id = s.stage_id
-        AND latest_submissions.student_id = s.student_id
+        ON latest_submissions.student_id = s.student_id
         AND latest_submissions.max_submitted_at = s.submitted_at
-      INNER JOIN (
-        SELECT *
-        FROM assignment_stages
-        WHERE assignment_id = ? AND enabled = 1
-      ) stages on stages.id = s.stage_id
       INNER JOIN assignment_teachers at ON s.assignment_id = at.assignment_id AND at.teacher_id = ?
       INNER JOIN users ON s.student_id = users.id
-      LEFT JOIN assignment_grades ag ON ag.submission_id = s.id
+      ORDER BY s.submitted_at DESC
     ) t
     ${filter ? `WHERE full_name LIKE '%${filter}%' OR username LIKE '%${filter}%'` : ''}
     LIMIT ? OFFSET ?
     `,
-    [assignmentId, assignmentId, teacherId, limit, (page - 1) * limit],
+    [assignmentId, teacherId, limit, (page - 1) * limit],
   );
-  return rows as AssignmentSubmissionListingItem[];
+
+  const studentIdResults = rows as { student_id: number }[];
+  const studentIds = studentIdResults.map(s => s.student_id);
+
+  if (studentIds.length === 0) {
+    return [];
+  }
+
+  const studentIdPlaceholder = studentIds.map(() => '?').join(',');
+  const [detailsRows] = await pool.query(
+    `
+    SELECT
+      s.id, s.assignment_id, s.stage_id, s.student_id, s.submitted_at, s.is_final,
+      stages.stage_type as stage_type,
+      ag.overall_score as score,
+      users.username, users.first_name, users.last_name, CONCAT(users.first_name, ' ', users.last_name) as full_name
+    FROM assignment_submissions s
+    INNER JOIN (
+      SELECT stage_id, student_id, max(submitted_at) as max_submitted_at
+      FROM assignment_submissions
+      WHERE assignment_id = ?
+      GROUP BY stage_id, student_id
+    ) latest_submissions
+      ON latest_submissions.stage_id = s.stage_id
+      AND latest_submissions.student_id = s.student_id
+      AND latest_submissions.max_submitted_at = s.submitted_at
+    INNER JOIN (
+      SELECT *
+      FROM assignment_stages
+      WHERE assignment_id = ? AND enabled = 1
+    ) stages on stages.id = s.stage_id
+    INNER JOIN assignment_teachers at ON s.assignment_id = at.assignment_id AND at.teacher_id = ?
+    INNER JOIN users ON s.student_id = users.id AND s.student_id IN (${studentIdPlaceholder})
+    LEFT JOIN assignment_grades ag ON ag.submission_id = s.id
+    ORDER BY s.submitted_at DESC
+    `,
+    [assignmentId, assignmentId, teacherId, ...studentIds],
+  );
+  return detailsRows as AssignmentSubmissionListingItem[];
 };
 
 export const fetchLatestSubmissionsCountByAssignmentIdTeacherId = async (
@@ -255,4 +296,36 @@ export const fetchLatestSubmissionsCountByAssignmentIdTeacherId = async (
   );
   const result = rows as { 'COUNT(*)': number }[];
   return result.length > 0 ? result[0]['COUNT(*)'] : null;
+};
+
+export const fetchSubmissionsByAssignmentIdAndStudentId = async (
+  assignmentId: number,
+  studentId: number,
+): Promise<AssignmentSubmissionDetail[]> => {
+  const [rows] = await pool.query(
+    `
+      SELECT s.*,
+        a.title, a.description, a.start_date, a.due_date, a.type, a.rubrics,
+        stages.stage_type, stages.order_index,
+        users.username, users.first_name, users.last_name,
+        ag.overall_score, ag.overall_feedback, ag.rubrics_breakdown, ag.graded_at, ag.graded_by
+      FROM assignment_submissions s
+      INNER JOIN (
+        SELECT stage_id, student_id, max(submitted_at) as max_submitted_at
+        FROM assignment_submissions
+        WHERE assignment_id = ?
+        GROUP BY stage_id, student_id
+      ) latest_submissions
+        ON latest_submissions.stage_id = s.stage_id
+        AND latest_submissions.student_id = s.student_id
+        AND latest_submissions.max_submitted_at = s.submitted_at 
+      JOIN assignments a ON s.assignment_id = a.id
+      JOIN assignment_stages stages ON s.stage_id = stages.id
+      JOIN users ON s.student_id = users.id
+      LEFT JOIN assignment_grades ag ON s.id = ag.submission_id
+      WHERE s.assignment_id = ? AND s.student_id = ?
+    `,
+    [assignmentId, assignmentId, studentId],
+  );
+  return rows as AssignmentSubmissionDetail[];
 };

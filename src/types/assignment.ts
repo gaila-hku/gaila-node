@@ -123,20 +123,20 @@ export interface AssignmentSubmissionListingItem {
 }
 
 export interface AssignmentSubmissionListingItemResponse {
-  id: number;
   assignment_id: number | null;
-  submitted_at: number | null;
-  is_final: boolean | null;
-  score: number | null;
-  stage: {
+  submissions: {
     id: number;
+    stage_id: number;
     stage_type: string;
-  };
+    submitted_at: number | null;
+    is_final: boolean | null;
+    score: number | null;
+  }[];
   student: {
     id: number;
     username: string;
-    first_name: string | null;
-    last_name: string | null;
+    first_name?: string;
+    last_name?: string;
   };
 }
 
@@ -153,9 +153,40 @@ export interface AssignmentRecentSubmissionListingItemResponse
 export interface AssignmentGrade {
   id: number;
   submission_id: number;
-  score: number;
-  score_breakdown?: any;
-  feedback?: string;
+  overall_score: number;
+  overall_feedback?: string;
+  rubrics_breakdown?: string;
+  graded_at?: number;
+  graded_by: number;
+}
+
+export interface AssignmentSubmissionDetail {
+  id: number;
+
+  assignment_id: number;
+  title: string;
+  description?: string;
+  start_date?: number;
+  due_date?: number;
+  type?: string;
+  rubrics?: string;
+
+  stage_id: number;
+  stage_type: string;
+  order_index: number;
+
+  student_id: number;
+  username: string;
+  first_name: string;
+  last_name: string;
+
+  content?: string;
+  submitted_at?: number;
+  is_final?: boolean;
+
+  overall_score: number;
+  overall_feedback?: string;
+  rubrics_breakdown?: string;
   graded_at?: number;
   graded_by: number;
 }
