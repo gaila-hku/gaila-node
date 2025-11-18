@@ -466,3 +466,34 @@ export const fetchAssignmentDescriptionById = async (
   }
   return result[0].description || null;
 };
+
+export const fetchStudentIdsByAssignmentId = async (
+  assignmentId: number,
+): Promise<number[]> => {
+  const [classStudentsRows] = await pool.query(
+    `
+      SELECT DISTINCT cs.student_id as student_id
+      FROM assignment_targets at
+        INNER JOIN classes c ON c.id = at.class_id
+        JOIN class_students cs ON c.id = cs.class_id
+      WHERE assignment_id = ?
+    `,
+    [assignmentId],
+  );
+  const classStudents = classStudentsRows as { student_id: number }[];
+  const classStudentIds = classStudents.map(row => row.student_id);
+
+  const placeholder = classStudentIds.map(() => '?').join(',');
+  const [studentTargetsRows] = await pool.query(
+    `
+      SELECT DISTINCT at.student_id as student_id
+      FROM assignment_targets at
+      WHERE assignment_id = ? AND at.student_id NOT IN (${placeholder})
+    `,
+    [assignmentId, ...classStudentIds],
+  );
+  const studentTargetIds = (studentTargetsRows as { student_id: number }[]).map(
+    row => row.student_id,
+  );
+  return [...classStudentIds, ...studentTargetIds];
+};

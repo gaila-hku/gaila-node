@@ -28,3 +28,13 @@ export const saveNewTraceData = async (
     content,
   };
 };
+
+export const fetchPasteTextLogsByUserId = async (
+  userId: number,
+): Promise<TraceData[]> => {
+  const [rows] = await pool.query(
+    'SELECT * FROM trace_data WHERE user_id = ? AND action = "paste_text" ORDER BY saved_at DESC',
+    [userId],
+  );
+  return rows as TraceData[];
+};

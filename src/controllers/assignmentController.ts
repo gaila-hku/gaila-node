@@ -12,14 +12,23 @@ import {
   updateExistingAssignment,
 } from 'models/assignmentModel';
 import { fetchAssignmentStagesWithToolsByAssignmentId } from 'models/assignmentStageModel';
-import { fetchLatestSubmissionsByAssignmentIdStudentId } from 'models/assignmentSubmissionModel';
+import {
+  fetchLatestEssaySubmissionByAssignmentIdStudentId,
+  fetchLatestSubmissionsByAssignmentIdStudentId,
+} from 'models/assignmentSubmissionModel';
 import { fetchClassesByIds } from 'models/classModel';
+import {
+  fetchGptUnstructuredLogsByUserId,
+  fetchPromptAnalyticsByAssignmentIdUserId,
+} from 'models/gptLogModel';
+import { fetchPasteTextLogsByUserId } from 'models/traceDataModel';
 import { fetchUsersByIds } from 'models/userModel';
 
 import { Assignment, AssignmentView } from 'types/assignment';
 import { Class, ClassOption } from 'types/class';
 import { AuthorizedRequest } from 'types/request';
 import { User, UserOption } from 'types/user';
+import getPlagiarisedSegments from 'utils/getPlagiarisedSegments';
 
 const parseQueryNumber = (v: any): number | undefined => {
   if (typeof v === 'string') return parseInt(v, 10);
@@ -450,4 +459,75 @@ export const getAssignmentProgressDetails = async (
     current_stage: currentStage,
     is_finished: isFinished,
   });
+};
+
+export const getStudentAssignmentAnalytics = async (
+  req: AuthorizedRequest,
+  res: Response,
+) => {
+  if (!req.user?.id) {
+    return res
+      .status(401)
+      .json({ error_message: 'User not authenticated', error_code: 401 });
+  }
+
+  const assignmentId = Number(req.query.assignment_id);
+  if (isNaN(assignmentId)) {
+    return res
+      .status(400)
+      .json({ error_message: 'Missing assignment ID', error_code: 400 });
+  }
+
+  const latestEssaySubmission =
+    await fetchLatestEssaySubmissionByAssignmentIdStudentId(
+      assignmentId,
+      req.user.id,
+    );
+  if (!latestEssaySubmission) {
+    throw new Error('Essay not given and assignment submission not found');
+  }
+  let essay = '';
+  const submissionContent = latestEssaySubmission.content as any;
+  if ('content' in submissionContent) {
+    essay = submissionContent.content;
+  }
+
+  // 1. Chat Prompts and categories
+  const promptAnalytics = await fetchPromptAnalyticsByAssignmentIdUserId(
+    assignmentId,
+    req.user.id,
+  );
+  // 2. Agents prompts
+  // 3. Timeline
+
+  const gptLogs = await fetchGptUnstructuredLogsByUserId(req.user.id);
+  const pasteTextLogs = await fetchPasteTextLogsByUserId(req.user.id);
+  const plagiarisedSegments = getPlagiarisedSegments(
+    essay,
+    gptLogs,
+    pasteTextLogs,
+  );
+
+  return res.json({
+    ...promptAnalytics,
+    plagiarised_segments: plagiarisedSegments,
+  });
+};
+
+export const getTeacherAssignmentAnalytics = async (
+  req: AuthorizedRequest,
+  res: Response,
+) => {
+  if (!req.user?.id) {
+    return res
+      .status(401)
+      .json({ error_message: 'User not authenticated', error_code: 401 });
+  }
+
+  // const assignmentId = Number(req.query.id);
+  // if (isNaN(assignmentId)) {
+  //   return res
+  //     .status(400)
+  //     .json({ error_message: 'Missing assignment ID', error_code: 400 });
+  // }
 };

@@ -74,3 +74,25 @@ interface GptClassificationResponseObject extends GptReponseObject {
 export interface GptClassificationResponse extends GptResponse {
   response: GptClassificationResponseObject;
 }
+
+export interface GptAnalytics {
+  prompt_count: number;
+  nature_counts: {
+    [nature: string]: number;
+  };
+  aspect_counts: {
+    [aspect: string]: number;
+  };
+  tool_counts: {
+    [tool: string]: number;
+  };
+  nature_counts_class: {
+    [nature: string]: number;
+  };
+  aspect_counts_class: {
+    [aspect: string]: number;
+  };
+  tool_counts_class: {
+    [tool: string]: number;
+  };
+}
