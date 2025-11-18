@@ -449,3 +449,20 @@ export const updateExistingAssignment = async (
 
   return result.length > 0 ? result[0] : null;
 };
+
+export const fetchAssignmentDescriptionById = async (
+  assignmentId: number,
+): Promise<string | null> => {
+  const [rows] = await pool.query(
+    'SELECT description, instructions FROM assignments WHERE id = ?',
+    [assignmentId],
+  );
+  const result = rows as Partial<Assignment>[];
+  if (result.length < 1 || !result[0].description) {
+    return null;
+  }
+  if (result[0].instructions) {
+    return `${result[0].description} \n\nInstructions: ${result[0].description}`;
+  }
+  return result[0].description || null;
+};

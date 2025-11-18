@@ -1,4 +1,4 @@
-import { GptLog, GptResponse } from 'types/gpt';
+import { GptClassificationResponse, GptLog, GptResponse } from 'types/gpt';
 
 const chatServiceUrl = process.env.CHAT_SERVICE_URL || 'http://localhost:5000';
 
@@ -15,7 +15,7 @@ const defaultChatFetchOptions = {
   },
 };
 
-export const fetchChatReponse = async (
+export const fetchChatResponse = async (
   question: string,
   rolePrompt: string,
   essay: string,
@@ -39,7 +39,7 @@ export const fetchChatReponse = async (
   return res.json();
 };
 
-export const fetchDictionaryAgentReponse = async (
+export const fetchDictionaryAgentResponse = async (
   question: string,
   rolePrompt: string,
   pastMessages: GptLog[],
@@ -61,7 +61,7 @@ export const fetchDictionaryAgentReponse = async (
   return res.json();
 };
 
-export const fetchGrammarAgentReponse = async (
+export const fetchGrammarAgentResponse = async (
   question: string,
   rolePrompt: string,
   essay: string,
@@ -85,7 +85,7 @@ export const fetchGrammarAgentReponse = async (
   return res.json();
 };
 
-export const fetchAutogradeAgentReponse = async (
+export const fetchAutogradeAgentResponse = async (
   question: string,
   rolePrompt: string,
   essay: string,
@@ -104,6 +104,24 @@ export const fetchAutogradeAgentReponse = async (
   });
 
   const res = await fetch(chatServiceUrl + '/autograde-agent', {
+    ...defaultChatFetchOptions,
+    body: data,
+  });
+
+  return res.json();
+};
+
+export const fetchPromptClassificationResponse = async (
+  taskDescription: string | null,
+  prompts: string[],
+): Promise<GptClassificationResponse> => {
+  const data = new URLSearchParams({
+    ...defaultChatRequest,
+    ...(taskDescription ? { taskDescription } : {}),
+    prompts: JSON.stringify(prompts),
+  });
+
+  const res = await fetch(chatServiceUrl + '/classify-prompt', {
     ...defaultChatFetchOptions,
     body: data,
   });

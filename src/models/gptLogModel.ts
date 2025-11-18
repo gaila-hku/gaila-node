@@ -78,3 +78,30 @@ export const fetchLatestStructuredGptLogsByUserIdToolId = async (
   const result = rows as GptLog[];
   return result.length > 0 ? result[0] : null;
 };
+
+export const savePromptCategories = async (
+  gptLogIds: number[],
+  nature_categories: number[],
+  aspect_categories: number[],
+): Promise<void> => {
+  for (let i = 0; i < gptLogIds.length; i++) {
+    await pool.query(
+      'UPDATE gpt_logs SET prompt_nature_category = ?, prompt_aspect_category = ? WHERE id = ?',
+      [nature_categories[i], aspect_categories[i], gptLogIds[i]],
+    );
+  }
+};
+
+export const fetchUncategorizedPromptsByAssignmentId = async (
+  assignmentId: number,
+): Promise<GptLog[]> => {
+  const [rows] = await pool.query(
+    `
+      SELECT log.* FROM gpt_logs log
+      INNER JOIN assignment_tools at ON log.assignment_tool_id = at.id AND at.assignment_id = ?
+      WHERE log.is_structured = 0 AND log.prompt_nature_category IS NULL AND log.prompt_aspect_category IS NULL
+    `,
+    [assignmentId],
+  );
+  return rows as GptLog[];
+};

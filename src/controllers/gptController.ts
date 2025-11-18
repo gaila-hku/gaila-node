@@ -1,12 +1,16 @@
 import { Response } from 'express';
 import {
-  fetchAutogradeAgentReponse,
-  fetchChatReponse,
-  fetchDictionaryAgentReponse,
-  fetchGrammarAgentReponse,
+  fetchAutogradeAgentResponse,
+  fetchChatResponse,
+  fetchDictionaryAgentResponse,
+  fetchGrammarAgentResponse,
+  fetchPromptClassificationResponse,
 } from 'external/chat-service';
-import { isArray, isNil } from 'lodash-es';
-import { fetchRubricsByAssignmentId } from 'models/assignmentModel';
+import { isArray, isNil, isNumber } from 'lodash-es';
+import {
+  fetchAssignmentDescriptionById,
+  fetchRubricsByAssignmentId,
+} from 'models/assignmentModel';
 import { fetchLatestSubmissionByStageIdStudentId } from 'models/assignmentSubmissionModel';
 import {
   fetchAssignmentToolByAssignmentToolId,
@@ -16,10 +20,13 @@ import {
   fetchGptUnstructuredLogsByUserIdToolId,
   fetchLatestGptLogByUserIdToolId,
   fetchLatestStructuredGptLogsByUserIdToolId,
+  fetchUncategorizedPromptsByAssignmentId,
   saveNewGptLog,
+  savePromptCategories,
 } from 'models/gptLogModel';
 import { saveNewTraceData } from 'models/traceDataModel';
 
+import { GptLog } from 'types/gpt';
 import { AuthorizedRequest } from 'types/request';
 import parseQueryNumber from 'utils/parseQueryNumber';
 
@@ -107,6 +114,53 @@ const preapreGptEssay = async (
   return essay;
 };
 
+const pendingCateogryLogs: GptLog[] = [];
+const CATEGORY_BATCH_SIZE = 5;
+
+const classifyPrompt = async (
+  gptlog: GptLog,
+  assignmentId: number,
+  forceBatch?: boolean,
+) => {
+  pendingCateogryLogs.push(gptlog);
+  if (pendingCateogryLogs.length < CATEGORY_BATCH_SIZE && !forceBatch) {
+    return;
+  }
+  const taskDescription = await fetchAssignmentDescriptionById(assignmentId);
+  const res = await fetchPromptClassificationResponse(
+    taskDescription,
+    pendingCateogryLogs.map(s => s.user_question),
+  );
+  if (!res.response.choices[0]) {
+    console.error('Invalid response from ChatGPT');
+    return;
+  }
+  const gptAnswer = res.response.choices[0].message.parsed;
+  if (!gptAnswer) {
+    console.error('No response content from ChatGPT');
+    return;
+  }
+  const categories = 'categories' in gptAnswer ? gptAnswer.categories : [];
+  if (
+    !isArray(categories) ||
+    categories.length !== pendingCateogryLogs.length ||
+    !categories.every(
+      (s, index) => s.prompt === pendingCateogryLogs[index].user_question,
+    ) ||
+    !categories.every(
+      s => isNumber(s.prompt_nature_code) && isNumber(s.writing_aspect_code),
+    )
+  ) {
+    console.error('Response length mismatch from ChatGPT');
+    return;
+  }
+  savePromptCategories(
+    pendingCateogryLogs.map(s => s.id),
+    categories.map(s => s.prompt_nature_code),
+    categories.map(s => s.writing_aspect_code),
+  );
+};
+
 export const askGptModel = async (req: AuthorizedRequest, res: Response) => {
   try {
     const {
@@ -129,7 +183,7 @@ export const askGptModel = async (req: AuthorizedRequest, res: Response) => {
 
     try {
       const userAskTime = Date.now();
-      const chatRes = await fetchChatReponse(
+      const chatRes = await fetchChatResponse(
         question,
         rolePrompt,
         essay || '',
@@ -166,6 +220,8 @@ export const askGptModel = async (req: AuthorizedRequest, res: Response) => {
           answer: gptAnswer,
         }),
       );
+
+      classifyPrompt(gptLog, assignmentId);
 
       return res.json(gptLog);
     } catch (e) {
@@ -205,7 +261,7 @@ export const askDictionaryAgent = async (
 
     try {
       const userAskTime = Date.now();
-      const chatRes = await fetchDictionaryAgentReponse(
+      const chatRes = await fetchDictionaryAgentResponse(
         question,
         rolePrompt,
         pastMessages,
@@ -284,7 +340,7 @@ export const askGrammarAgent = async (
 
     try {
       const userAskTime = Date.now();
-      const chatRes = await fetchGrammarAgentReponse(
+      const chatRes = await fetchGrammarAgentResponse(
         question,
         rolePrompt,
         essay,
@@ -372,7 +428,7 @@ export const askAutogradeAgent = async (
 
     try {
       const userAskTime = Date.now();
-      const chatRes = await fetchAutogradeAgentReponse(
+      const chatRes = await fetchAutogradeAgentResponse(
         question,
         rolePrompt,
         essay,
@@ -510,4 +566,26 @@ export const getLatestGptStructuredOutput = async (
   }
 
   return res.json(results);
+};
+
+export const refreshPromptCategories = async (
+  req: AuthorizedRequest,
+  res: Response,
+) => {
+  const assignmentIds = req.body.assignment_ids;
+  if (!Array.isArray(assignmentIds) || !assignmentIds.every(Number.isInteger)) {
+    return res
+      .status(400)
+      .json({ error_message: 'Invalid assignment ids', error_code: 400 });
+  }
+
+  for (const assignmentId of assignmentIds) {
+    console.info(`Refreshing prompt categories for assignment ${assignmentId}`);
+    const logs = await fetchUncategorizedPromptsByAssignmentId(assignmentId);
+    for (const [index, log] of logs.entries()) {
+      console.info(`Refreshing prompt ${log.user_question}`);
+      await classifyPrompt(log, assignmentId, index === logs.length - 1);
+    }
+  }
+  return res.sendStatus(200);
 };
