@@ -1,7 +1,7 @@
 import { ResultSetHeader } from 'mysql2';
 
 import pool from 'config/db';
-import { TraceData } from 'types/trace-data';
+import { TimelineData, TraceData } from 'types/trace-data';
 
 export const saveNewTraceData = async (
   userId: number,
@@ -37,4 +37,47 @@ export const fetchPasteTextLogsByUserId = async (
     [userId],
   );
   return rows as TraceData[];
+};
+
+export const fetchTimelineDataByUserIdAssignmentId = async (
+  userId: number,
+  assignmentId: number,
+): Promise<TimelineData[]> => {
+  const [startTimeRows] = await pool.query(
+    `
+      SELECT stage_type, min(saved_at) as start_time FROM trace_data
+      RIGHT JOIN assignment_stages ON trace_data.stage_id = assignment_stages.id AND assignment_stages.assignment_id = ?
+      WHERE trace_data.user_id = ? AND trace_data.assignment_id = ?
+      GROUP BY stage_type
+    `,
+    [assignmentId, userId, assignmentId],
+  );
+  const startTimeResults = startTimeRows as {
+    stage_type: string;
+    start_time: number | null;
+  }[];
+
+  const [endTimeRows] = await pool.query(
+    `
+      SELECT stage_type, max(submitted_at) as end_time FROM assignment_submissions
+      RIGHT JOIN  assignment_stages ON assignment_submissions.stage_id = assignment_stages.id AND assignment_stages.assignment_id = ?
+      WHERE assignment_submissions.student_id = ? AND assignment_submissions.assignment_id = ? AND assignment_submissions.is_final = 1
+      GROUP BY stage_type
+    `,
+    [assignmentId, userId, assignmentId],
+  );
+  const endTimeResults = endTimeRows as {
+    stage_type: string;
+    end_time: number | null;
+  }[];
+
+  const results = startTimeResults.map(item => {
+    const endTime = endTimeResults.find(i => i.stage_type === item.stage_type);
+    return {
+      ...item,
+      end_time: endTime ? endTime.end_time : null,
+    };
+  });
+
+  return results;
 };

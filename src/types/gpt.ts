@@ -76,23 +76,27 @@ export interface GptClassificationResponse extends GptResponse {
 }
 
 export interface GptAnalytics {
-  prompt_count: number;
-  nature_counts: {
-    [nature: string]: number;
-  };
-  aspect_counts: {
-    [aspect: string]: number;
-  };
-  tool_counts: {
-    [tool: string]: number;
-  };
-  nature_counts_class: {
-    [nature: string]: number;
-  };
-  aspect_counts_class: {
-    [aspect: string]: number;
-  };
-  tool_counts_class: {
-    [tool: string]: number;
-  };
+  total_prompt_count: number;
+  nature_counts: GptAnalyticsCountItem[];
+  aspect_counts: GptAnalyticsCountItem[];
+  tool_counts: GptAnalyticsCountItem[];
+}
+
+export interface GptAnalyticsCountDatabaseItem {
+  item_key: number;
+  stage_type: string;
+  count: number;
+}
+
+export interface GptAnalyticsCountDatabaseToolItem {
+  item_key: string;
+  stage_type: string;
+  count: number;
+}
+
+export interface GptAnalyticsCountItem {
+  key: string;
+  stage_type: string;
+  count: number | undefined;
+  class_average: number;
 }

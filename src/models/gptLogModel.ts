@@ -2,10 +2,15 @@ import { fetchStudentIdsByAssignmentId } from 'models/assignmentModel';
 import { ResultSetHeader } from 'mysql2';
 
 import pool from 'config/db';
-import { GptAnalytics, GptLog } from 'types/gpt';
 import {
-  convertPromptAspectObject,
-  convertPromptNatureObject,
+  GptAnalytics,
+  GptAnalyticsCountDatabaseItem,
+  GptAnalyticsCountDatabaseToolItem,
+  GptLog,
+} from 'types/gpt';
+import {
+  convertPromptAspectArray,
+  convertPromptNatureArray,
 } from 'utils/convertCategoryObject';
 
 export const fetchLatestGptLogByUserIdToolId = async (
@@ -150,30 +155,26 @@ export const fetchPromptAnalyticsByAssignmentIdUserId = async (
 
   const [natureRows] = await pool.query(
     `
-      SELECT prompt_nature_category as code, COUNT(*) as count FROM gpt_logs log
+      SELECT prompt_nature_category as item_key, stage_type, COUNT(*) as count FROM gpt_logs log
       INNER JOIN assignment_tools at ON log.assignment_tool_id = at.id AND at.assignment_id = ?
+      INNER JOIN assignment_stages as s ON at.assignment_stage_id = s.id
       WHERE prompt_nature_category IS NOT NULL AND log.user_id = ?
-      GROUP BY prompt_nature_category
+      GROUP BY prompt_nature_category, stage_type
     `,
     [assignmentId, userId],
   );
-  const natureResult = natureRows as {
-    code: number;
-    count: number;
-  }[];
+  const natureResult = natureRows as GptAnalyticsCountDatabaseItem[];
   const [natureClassRows] = await pool.query(
     `
-      SELECT prompt_nature_category as code, COUNT(*) as count FROM gpt_logs log
+      SELECT prompt_nature_category as item_key, stage_type, COUNT(*) as count FROM gpt_logs log
       INNER JOIN assignment_tools at ON log.assignment_tool_id = at.id AND at.assignment_id = ?
+      INNER JOIN assignment_stages as s ON at.assignment_stage_id = s.id
       WHERE prompt_nature_category IS NOT NULL
-      GROUP BY prompt_nature_category
+      GROUP BY prompt_nature_category, stage_type
     `,
     [assignmentId],
   );
-  const natureClassResult = natureClassRows as {
-    code: number;
-    count: number;
-  }[];
+  const natureClassResult = natureClassRows as GptAnalyticsCountDatabaseItem[];
   const natureClassAvgResult = natureClassResult.map(item => ({
     ...item,
     count: item.count / studentCount,
@@ -181,30 +182,26 @@ export const fetchPromptAnalyticsByAssignmentIdUserId = async (
 
   const [aspectRows] = await pool.query(
     `
-      SELECT prompt_aspect_category as code, COUNT(*) as count FROM gpt_logs log
+      SELECT prompt_aspect_category as item_key, stage_type, COUNT(*) as count FROM gpt_logs log
       INNER JOIN assignment_tools at ON log.assignment_tool_id = at.id AND at.assignment_id = ?
+      INNER JOIN assignment_stages as s ON at.assignment_stage_id = s.id
       WHERE prompt_aspect_category IS NOT NULL AND log.user_id = ?
-      GROUP BY prompt_aspect_category
+      GROUP BY prompt_aspect_category, stage_type
     `,
     [assignmentId, userId],
   );
-  const aspectResult = aspectRows as {
-    code: number;
-    count: number;
-  }[];
+  const aspectResult = aspectRows as GptAnalyticsCountDatabaseItem[];
   const [aspectClassRows] = await pool.query(
     `
-      SELECT prompt_aspect_category as code, COUNT(*) as count FROM gpt_logs log
+      SELECT prompt_aspect_category as item_key, stage_type, COUNT(*) as count FROM gpt_logs log
       INNER JOIN assignment_tools at ON log.assignment_tool_id = at.id AND at.assignment_id = ?
+      INNER JOIN assignment_stages as s ON at.assignment_stage_id = s.id
       WHERE prompt_aspect_category IS NOT NULL
-      GROUP BY prompt_aspect_category
+      GROUP BY prompt_aspect_category, stage_type
     `,
     [assignmentId],
   );
-  const aspectClassResult = aspectClassRows as {
-    code: number;
-    count: number;
-  }[];
+  const aspectClassResult = aspectClassRows as GptAnalyticsCountDatabaseItem[];
   const aspectClassAvgResult = aspectClassResult.map(item => ({
     ...item,
     count: item.count / studentCount,
@@ -212,54 +209,40 @@ export const fetchPromptAnalyticsByAssignmentIdUserId = async (
 
   const [toolRows] = await pool.query(
     `
-      SELECT tool_key, COUNT(*) as count FROM gpt_logs log
+      SELECT tool_key as item_key, stage_type, COUNT(*) as count FROM gpt_logs log
       INNER JOIN assignment_tools at ON log.assignment_tool_id = at.id AND at.assignment_id = ?
+      INNER JOIN assignment_stages as s ON at.assignment_stage_id = s.id
       WHERE log.is_structured = 1 AND log.user_id = ?
-      GROUP BY tool_key
+      GROUP BY tool_key, stage_type
     `,
     [assignmentId, userId],
   );
-  const toolResult = toolRows as {
-    tool_key: string;
-    count: number;
-  }[];
+  const toolResult = toolRows as GptAnalyticsCountDatabaseToolItem[];
   const [toolClassRows] = await pool.query(
     `
-      SELECT tool_key, COUNT(*) as count FROM gpt_logs log
+      SELECT tool_key as item_key, COUNT(*) as count FROM gpt_logs log
       INNER JOIN assignment_tools at ON log.assignment_tool_id = at.id AND at.assignment_id = ?
       WHERE log.is_structured = 1
       GROUP BY tool_key
     `,
     [assignmentId, userId],
   );
-  const toolClassResult = toolClassRows as {
-    tool_key: string;
-    count: number;
-  }[];
+  const toolClassResult = toolClassRows as GptAnalyticsCountDatabaseToolItem[];
   const toolClassAvgResult = toolClassResult.map(item => ({
     ...item,
     count: item.count / studentCount,
   }));
 
   return {
-    prompt_count: promptCount,
-    nature_counts: convertPromptNatureObject(natureResult),
-    aspect_counts: convertPromptAspectObject(aspectResult),
-    tool_counts: toolResult.reduce(
-      (acc, item) => {
-        acc[item.tool_key] = item.count;
-        return acc;
-      },
-      {} as Record<string, number>,
-    ),
-    nature_counts_class: convertPromptNatureObject(natureClassAvgResult),
-    aspect_counts_class: convertPromptAspectObject(aspectClassAvgResult),
-    tool_counts_class: toolClassAvgResult.reduce(
-      (acc, item) => {
-        acc[item.tool_key] = item.count;
-        return acc;
-      },
-      {} as Record<string, number>,
-    ),
+    total_prompt_count: promptCount,
+    nature_counts: convertPromptNatureArray(natureResult, natureClassAvgResult),
+    aspect_counts: convertPromptAspectArray(aspectResult, aspectClassAvgResult),
+    tool_counts: toolResult.map(item => ({
+      key: item.item_key,
+      stage_type: item.stage_type,
+      count: item.count,
+      class_average:
+        toolClassAvgResult.find(i => i.item_key === item.item_key)?.count ?? 0,
+    })),
   };
 };
