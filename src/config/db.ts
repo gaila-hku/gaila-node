@@ -25,6 +25,13 @@ const pool: Pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
+  typeCast: function (field, next) {
+    if (field.type == 'NEWDECIMAL') {
+      const value = field.string();
+      return value === null ? null : Number(value);
+    }
+    return next();
+  },
 });
 
 export default pool;

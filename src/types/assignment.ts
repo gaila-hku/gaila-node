@@ -15,6 +15,13 @@ export interface Assignment {
   created_by: number;
 }
 
+export interface AssignmentTeacherListingItem extends Assignment {
+  student_count: number;
+  submitted_count: number;
+  graded_count: number;
+  status: 'active' | 'upcoming' | 'past-due';
+}
+
 export interface AssignmentView extends Assignment {
   enrolled_classes: Class[];
   enrolled_students: User[];

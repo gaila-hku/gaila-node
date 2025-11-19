@@ -8,6 +8,7 @@ import {
   AssignmentEnrollment,
   AssignmentOption,
   AssignmentStageCreatePayload,
+  AssignmentTeacherListingItem,
 } from 'types/assignment';
 import { ClassTeacher } from 'types/class';
 
@@ -24,27 +25,49 @@ export const fetchAssignmentsByTeacherId = async (
   filter: AssignmentFilterType,
   sort: string | undefined,
   sortOrder: 'asc' | 'desc' | undefined,
-): Promise<Assignment[]> => {
+): Promise<AssignmentTeacherListingItem[]> => {
   const [assignmentRows] = await pool.query(
     `
     SELECT * FROM (
       SELECT
-        a.*,
+        id, title, description, start_date, due_date, type, instructions, requirements, rubrics, tips, created_by,
+        COUNT(DISTINCT student_id) as student_count,
+        CAST(SUM(submitted) AS UNSIGNED) AS submitted_count,
+        CAST(SUM(graded) AS UNSIGNED) AS graded_count,
+        CAST(AVG(score) AS DECIMAL(10, 2)) as avg_score,
         CASE
-          WHEN a.start_date IS NOT NULL AND UNIX_TIMESTAMP(UTC_TIMESTAMP()) * 1000 < a.start_date THEN 'upcoming'
-          WHEN a.due_date IS NOT NULL AND UNIX_TIMESTAMP(UTC_TIMESTAMP()) * 1000 > a.due_date THEN 'past-due'
+          WHEN start_date IS NOT NULL AND UNIX_TIMESTAMP(UTC_TIMESTAMP()) * 1000 < start_date THEN 'upcoming'
+          WHEN due_date IS NOT NULL AND UNIX_TIMESTAMP(UTC_TIMESTAMP()) * 1000 > due_date THEN 'past-due'
           ELSE 'active'
         END AS status
-      FROM assignments a
-      JOIN assignment_teachers at ON a.id = at.assignment_id
-      WHERE at.teacher_id = ? AND title like '%${filter.search}%' ${filter.type ? `AND type = '${filter.type}'` : ''}
+      from (
+        SELECT
+        a.*, student_ids.student_id as student_id,
+          CASE WHEN COUNT(DISTINCT fs.stage_id) = COUNT(DISTINCT ast.id) THEN 1 ELSE 0 END as submitted,
+          CASE WHEN COUNT(DISTINCT fs.stage_id) = COUNT(DISTINCT ast.id) AND COUNT(DISTINCT g.submission_id) > 0 THEN 1 ELSE 0 END as graded,
+          MAX(g.overall_score) as score
+        FROM assignments a
+        JOIN assignment_teachers at ON a.id = at.assignment_id
+        JOIN (
+          SELECT DISTINCT student_id, assignment_id from assignment_targets WHERE student_id is not null
+          UNION
+          SELECT DISTINCT cs.student_id, assignment_id from assignment_targets at 
+          JOIN class_students cs ON cs.class_id = at.class_id
+        ) student_ids ON student_ids.assignment_id = at.assignment_id
+        JOIN assignment_stages ast ON a.id = ast.assignment_id
+        LEFT JOIN assignment_submissions fs ON ast.id = fs.stage_id AND fs.student_id = student_ids.student_id AND fs.is_final = 1
+        LEFT JOIN assignment_grades g ON fs.id = g.submission_id
+        WHERE at.teacher_id = ? AND title like '%${filter.search}%' ${filter.type ? `AND type = '${filter.type}'` : ''}
+        GROUP BY a.id, student_ids.student_id
+      ) counts
+      GROUP BY counts.id
     ) t
       ${filter.status ? `WHERE status = '${filter.status}'` : ''}
       ${sort ? `ORDER BY ${sort} ${sortOrder || 'asc'}` : ''}
       LIMIT ? OFFSET ?`,
     [teacherId, limit, (page - 1) * limit],
   );
-  return assignmentRows as Assignment[];
+  return assignmentRows as AssignmentTeacherListingItem[];
 };
 
 export const fetchAssignmentsCountByTeacherId = async (
@@ -54,14 +77,14 @@ export const fetchAssignmentsCountByTeacherId = async (
   const [rows] = await pool.query(
     `SELECT COUNT(*) FROM (
       SELECT
-        a.*,
+        DISTINCT a.*,
         CASE
           WHEN a.start_date IS NOT NULL AND UNIX_TIMESTAMP(UTC_TIMESTAMP()) * 1000 < a.start_date THEN 'upcoming'
           WHEN a.due_date IS NOT NULL AND UNIX_TIMESTAMP(UTC_TIMESTAMP()) * 1000 > a.due_date THEN 'past-due'
           ELSE 'active'
         END AS status
       FROM assignments a
-      JOIN assignment_teachers at ON a.id = at.assignment_id
+      LEFT JOIN assignment_teachers at ON a.id = at.assignment_id
       WHERE at.teacher_id = ? AND title like '%${filter.search}%' ${filter.type ? `AND type = '${filter.type}'` : ''}
     ) t
       ${filter.status ? `WHERE status = '${filter.status}'` : ''}
@@ -87,7 +110,7 @@ export const fetchAssignmentsByStudentId = async (
         CASE
           WHEN a.start_date IS NOT NULL AND UNIX_TIMESTAMP(UTC_TIMESTAMP()) * 1000 < a.start_date THEN 'upcoming'
           WHEN a.due_date IS NOT NULL AND UNIX_TIMESTAMP(UTC_TIMESTAMP()) * 1000 > a.due_date AND COUNT(DISTINCT fs.stage_id) != COUNT(DISTINCT ast.id) THEN 'past-due'
-          WHEN COUNT(DISTINCT fs.stage_id) = COUNT(DISTINCT ast.id) AND COUNT(DISTINCT g.id) = COUNT(DISTINCT fs.stage_id)
+          WHEN COUNT(DISTINCT fs.stage_id) = COUNT(DISTINCT ast.id) AND COUNT(DISTINCT g.submission_id) = COUNT(DISTINCT fs.stage_id)
             THEN 'graded'
           WHEN COUNT(DISTINCT fs.stage_id) = COUNT(DISTINCT ast.id) THEN 'submitted'
           ELSE 'in-progress'
@@ -122,7 +145,7 @@ export const fetchAssignmentsCountByStudentId = async (
         CASE
           WHEN a.start_date IS NOT NULL AND UNIX_TIMESTAMP(UTC_TIMESTAMP()) * 1000 < a.start_date THEN 'upcoming'
           WHEN a.due_date IS NOT NULL AND UNIX_TIMESTAMP(UTC_TIMESTAMP()) * 1000 > a.due_date AND COUNT(DISTINCT fs.stage_id) != COUNT(DISTINCT ast.id) THEN 'past-due'
-          WHEN COUNT(DISTINCT fs.stage_id) = COUNT(DISTINCT ast.id) AND COUNT(DISTINCT g.id) = COUNT(DISTINCT fs.stage_id)
+          WHEN COUNT(DISTINCT fs.stage_id) = COUNT(DISTINCT ast.id) AND COUNT(DISTINCT g.submission_id) = COUNT(DISTINCT fs.stage_id)
             THEN 'graded'
           WHEN COUNT(DISTINCT fs.stage_id) = COUNT(DISTINCT ast.id) THEN 'submitted'
           ELSE 'in-progress'
@@ -521,7 +544,7 @@ export const fetchAssignmentOptionsByTeacherId = async (
 ): Promise<AssignmentOption[]> => {
   const [rows] = await pool.query(
     `
-      SELECT a.id, a.title
+      SELECT DISTINCT a.id, a.title
       FROM assignments a
       JOIN assignment_teachers at ON a.id = at.assignment_id
       WHERE at.teacher_id = ?
