@@ -190,3 +190,8 @@ export interface AssignmentSubmissionDetail {
   graded_at?: number;
   graded_by: number;
 }
+
+export interface AssignmentOption {
+  id: number;
+  title: string;
+}

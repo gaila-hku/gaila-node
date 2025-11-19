@@ -6,6 +6,7 @@ import pool from 'config/db';
 import {
   Assignment,
   AssignmentEnrollment,
+  AssignmentOption,
   AssignmentStageCreatePayload,
 } from 'types/assignment';
 import { ClassTeacher } from 'types/class';
@@ -496,4 +497,37 @@ export const fetchStudentIdsByAssignmentId = async (
     row => row.student_id,
   );
   return [...classStudentIds, ...studentTargetIds];
+};
+
+export const fetchAssignmentOptionsByStudentId = async (
+  studentId: number,
+): Promise<AssignmentOption[]> => {
+  const [rows] = await pool.query(
+    `
+      SELECT DISTINCT a.id, a.title
+      FROM assignments a
+        JOIN assignment_targets at ON a.id = at.assignment_id
+      WHERE 
+        at.student_id = ? OR at.class_id in (SELECT class_id FROM class_students WHERE student_id = ?)
+    `,
+    [studentId, studentId],
+  );
+
+  return rows as AssignmentOption[];
+};
+
+export const fetchAssignmentOptionsByTeacherId = async (
+  teacherId: number,
+): Promise<AssignmentOption[]> => {
+  const [rows] = await pool.query(
+    `
+      SELECT a.id, a.title
+      FROM assignments a
+      JOIN assignment_teachers at ON a.id = at.assignment_id
+      WHERE at.teacher_id = ?
+    `,
+    [teacherId],
+  );
+
+  return rows as AssignmentOption[];
 };

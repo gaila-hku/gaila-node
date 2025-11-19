@@ -4,6 +4,8 @@ import { fetchLatestGradesBySubmissionIds } from 'models/assignmentGradingModel'
 import {
   fetchAssignementEnrollmentsById,
   fetchAssignmentById,
+  fetchAssignmentOptionsByStudentId,
+  fetchAssignmentOptionsByTeacherId,
   fetchAssignmentsByStudentId,
   fetchAssignmentsByTeacherId,
   fetchAssignmentsCountByStudentId,
@@ -21,10 +23,13 @@ import {
   fetchGptUnstructuredLogsByUserId,
   fetchPromptAnalyticsByAssignmentIdUserId,
 } from 'models/gptLogModel';
-import { fetchPasteTextLogsByUserId } from 'models/traceDataModel';
+import {
+  fetchPasteTextLogsByUserId,
+  fetchTimelineDataByUserIdAssignmentId,
+} from 'models/traceDataModel';
 import { fetchUsersByIds } from 'models/userModel';
 
-import { Assignment, AssignmentView } from 'types/assignment';
+import { Assignment, AssignmentOption, AssignmentView } from 'types/assignment';
 import { Class, ClassOption } from 'types/class';
 import { AuthorizedRequest } from 'types/request';
 import { User, UserOption } from 'types/user';
@@ -492,14 +497,19 @@ export const getStudentAssignmentAnalytics = async (
     essay = submissionContent.content;
   }
 
-  // 1. Chat Prompts and categories
+  // 1. Prompt counts and class averages
   const promptAnalytics = await fetchPromptAnalyticsByAssignmentIdUserId(
     assignmentId,
     req.user.id,
   );
-  // 2. Agents prompts
-  // 3. Timeline
 
+  // 2. Writing stage timeline
+  const timelineData = await fetchTimelineDataByUserIdAssignmentId(
+    req.user.id,
+    assignmentId,
+  );
+
+  // 3. Plagiarism percentage
   const gptLogs = await fetchGptUnstructuredLogsByUserId(req.user.id);
   const pasteTextLogs = await fetchPasteTextLogsByUserId(req.user.id);
   const plagiarisedSegments = getPlagiarisedSegments(
@@ -509,7 +519,8 @@ export const getStudentAssignmentAnalytics = async (
   );
 
   return res.json({
-    ...promptAnalytics,
+    prompt_data: promptAnalytics,
+    timeline_data: timelineData,
     plagiarised_segments: plagiarisedSegments,
   });
 };
@@ -530,4 +541,29 @@ export const getTeacherAssignmentAnalytics = async (
   //     .status(400)
   //     .json({ error_message: 'Missing assignment ID', error_code: 400 });
   // }
+};
+
+export const getAssignmentOptions = async (
+  req: AuthorizedRequest,
+  res: Response,
+) => {
+  if (!req.user?.id) {
+    return res
+      .status(401)
+      .json({ error_message: 'User not authenticated', error_code: 401 });
+  }
+
+  let value: AssignmentOption[] = [];
+
+  if (req.user?.role === 'student') {
+    value = await fetchAssignmentOptionsByStudentId(req.user.id);
+  } else if (req.user?.role === 'teacher' || req.user?.role === 'admin') {
+    value = await fetchAssignmentOptionsByTeacherId(req.user.id);
+  } else {
+    return res.status(403).json({
+      error_message: 'Access forbidden: insufficient rights',
+      error_code: 403,
+    });
+  }
+  return res.json(value);
 };

@@ -2,6 +2,7 @@ import {
   createAssignment,
   getAssignmentDetails,
   getAssignmentListing,
+  getAssignmentOptions,
   getAssignmentProgressDetails,
   getStudentAssignmentAnalytics,
   updateAssignment,
@@ -26,5 +27,6 @@ router.get(
   authorizeRole(['teacher', 'admin']),
   getStudentAssignmentAnalytics,
 );
+router.get('/options', authorizeRole(), getAssignmentOptions);
 
 export default router;
