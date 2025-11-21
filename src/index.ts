@@ -22,14 +22,14 @@ app.use(
 );
 
 // Routes
-app.use('/api/', homeRoutes);
-app.use('/api/auth', authRoutes);
-app.use('/api/class', authenticateToken, classRoutes);
-app.use('/api/assignment', authenticateToken, assignmentRoutes);
-app.use('/api/submission', authenticateToken, assignmentSubmissionRoutes);
-app.use('/api/user', authenticateToken, userRoutes);
-app.use('/api/trace-data', authenticateToken, traceDataRoutes);
-app.use('/api/gpt', authenticateToken, gptRoutes);
+app.use('/', homeRoutes);
+app.use('/auth', authRoutes);
+app.use('/class', authenticateToken, classRoutes);
+app.use('/assignment', authenticateToken, assignmentRoutes);
+app.use('/submission', authenticateToken, assignmentSubmissionRoutes);
+app.use('/user', authenticateToken, userRoutes);
+app.use('/trace-data', authenticateToken, traceDataRoutes);
+app.use('/gpt', authenticateToken, gptRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

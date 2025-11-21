@@ -15,7 +15,7 @@ export let options = {
 };
 
 export default function () {
-  const baseUrl = 'http://localhost:5000/api';
+  const baseUrl = 'http://localhost:5000';
   const loginRes = http.post(
     `${baseUrl}/auth/login`,
     JSON.stringify({
