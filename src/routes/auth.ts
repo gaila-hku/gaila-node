@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authorizeRole } from 'middleware/auth';
+import { authenticateToken, authorizeRole } from 'middleware/auth';
 
 import {
   createUser,
@@ -11,6 +11,6 @@ const router = Router();
 
 router.post('/login', loginUser);
 router.post('/refresh', refreshToken);
-router.post('/create', authorizeRole(['admin']), createUser);
+router.post('/create', authenticateToken, authorizeRole(['admin']), createUser);
 
 export default router;
