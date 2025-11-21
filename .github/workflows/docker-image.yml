@@ -10,10 +10,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
+      
       - name: Sync repo to production folder
         run: |
-          rsync -av --delete . /root/revamp_app/
+          rsync -av --delete . /root/revamp_app/backend
 
       - name: Deploy backend
         run: |
