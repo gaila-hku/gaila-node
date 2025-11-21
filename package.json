@@ -5,9 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite-node src/index.ts",
-    "build": "tsc && pnpm run postbuild:tsc-alias",
-    "postbuild:tsc-alias": "tsc-alias",
-    "start": "vite-node dist/index.js",
+    "start": "vite-node src/index.ts",
     "eslint": "eslint --ext js,ts",
     "lint": "pnpm eslint src",
     "lint:fix": "pnpm eslint --fix src && prettier --write src",
