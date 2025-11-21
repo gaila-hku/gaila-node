@@ -119,12 +119,12 @@ export const refreshToken = async (req: Request, res: Response) => {
 };
 
 export const createUser = async (req: Request, res: Response) => {
-  const { username, password, email, role } = req.body;
+  const { username, password, role } = req.body;
 
-  if (!username || !password || !email || !role) {
+  if (!username || !password || !role) {
     return res
       .status(400)
-      .json({ error_message: 'Missing username, password, email or role' });
+      .json({ error_message: 'Missing username, password or role' });
   }
 
   // Check if user already exists
@@ -143,7 +143,6 @@ export const createUser = async (req: Request, res: Response) => {
       username,
       hashedPassword,
       role,
-      email,
       req.body.first_name || null,
       req.body.last_name || null,
     );

@@ -47,12 +47,11 @@ export const storeNewUser = async (
   username: string,
   passwordHash: string,
   role: string,
-  email: string,
   first_name: string | null,
   last_name: string | null,
 ): Promise<void> => {
   await pool.query(
-    'INSERT INTO users (username, password, role, email, first_name, last_name, time_created) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    [username, passwordHash, role, email, first_name, last_name, Date.now()],
+    'INSERT INTO users (username, password, role, first_name, last_name, time_created) VALUES (?, ?, ?, ?, ?, ?)',
+    [username, passwordHash, role, first_name, last_name, Date.now()],
   );
 };
