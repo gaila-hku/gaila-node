@@ -219,6 +219,7 @@ export const saveNewAssignment = async (
   requirements: string,
   rubrics: string,
   tips: string,
+  config: string,
   stages: AssignmentStageCreatePayload[],
   createdBy: number,
   enrolledClassIds: number[],
@@ -226,7 +227,7 @@ export const saveNewAssignment = async (
 ): Promise<Assignment | null> => {
   // 1. Save assignment
   const [insertRows] = await pool.query(
-    'INSERT INTO assignments (title, description, due_date, type, instructions, requirements, rubrics, tips, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO assignments (title, description, due_date, type, instructions, requirements, rubrics, tips, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [
       title,
       description || null,
@@ -236,6 +237,7 @@ export const saveNewAssignment = async (
       requirements,
       rubrics || null,
       tips || null,
+      config || null,
       createdBy,
     ],
   );
@@ -307,6 +309,7 @@ export const updateExistingAssignment = async (
   requirements: string,
   rubrics: string,
   tips: string,
+  config: string,
   stages: AssignmentStageCreatePayload[],
   newEnrolledClassIds: number[],
   newEnrolledStudentIds: number[],
@@ -344,6 +347,10 @@ export const updateExistingAssignment = async (
   if (tips) {
     updateParams.push(tips);
     placeholders.push('tips = ?');
+  }
+  if (config) {
+    updateParams.push(config);
+    placeholders.push('config = ?');
   }
 
   await pool.query(
