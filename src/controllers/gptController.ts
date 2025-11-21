@@ -67,10 +67,6 @@ const prepareGptRequest = async (
   const { assignment_id: assignmentId, assignment_stage_id: stageId } =
     assignmentTool;
 
-  if (!assignmentId) {
-    throw new Error('Invalid assignment tool ID');
-  }
-
   const pastMessages = isStructured
     ? []
     : await fetchLatestGptLogByUserIdToolId(req.user.id, assignmentToolId, 5);
@@ -179,7 +175,10 @@ export const askGptModel = async (req: AuthorizedRequest, res: Response) => {
 
     const essay = await preapreGptEssay(req, stageId);
 
-    const rubrics = await fetchRubricsByAssignmentId(assignmentId);
+    let rubrics: string | null = null;
+    if (assignmentId) {
+      rubrics = await fetchRubricsByAssignmentId(assignmentId);
+    }
 
     try {
       const userAskTime = Date.now();
@@ -212,7 +211,7 @@ export const askGptModel = async (req: AuthorizedRequest, res: Response) => {
 
       await saveNewTraceData(
         userId,
-        assignmentId,
+        assignmentId || null,
         stageId,
         'ASK_GPT',
         JSON.stringify({
@@ -221,7 +220,9 @@ export const askGptModel = async (req: AuthorizedRequest, res: Response) => {
         }),
       );
 
-      classifyPrompt(gptLog, assignmentId);
+      if (assignmentId) {
+        classifyPrompt(gptLog, assignmentId);
+      }
 
       return res.json(gptLog);
     } catch (e) {
@@ -291,7 +292,7 @@ export const askDictionaryAgent = async (
 
       await saveNewTraceData(
         userId,
-        assignmentId,
+        assignmentId || null,
         stageId,
         'ASK_GPT',
         JSON.stringify({
@@ -373,7 +374,7 @@ export const askGrammarAgent = async (
 
       await saveNewTraceData(
         userId,
-        assignmentId,
+        assignmentId || null,
         stageId,
         'ASK_GPT',
         JSON.stringify({
@@ -420,6 +421,10 @@ export const askAutogradeAgent = async (
 
     const essay = await preapreGptEssay(req, stageId);
 
+    if (!assignmentId) {
+      throw new Error('Invalid assignment tool ID');
+    }
+
     const rubrics = await fetchRubricsByAssignmentId(assignmentId);
 
     if (!rubrics) {
@@ -463,7 +468,7 @@ export const askAutogradeAgent = async (
       if (req.user?.role === 'student') {
         await saveNewTraceData(
           userId,
-          assignmentId,
+          assignmentId || null,
           stageId as number,
           'ASK_GPT',
           JSON.stringify({
