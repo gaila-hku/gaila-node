@@ -169,10 +169,6 @@ export const askGptModel = async (req: AuthorizedRequest, res: Response) => {
       pastMessages,
     } = await prepareGptRequest(req);
 
-    if (!stageId) {
-      throw new Error('Invalid assignment tool ID');
-    }
-
     const essay = await preapreGptEssay(req, stageId);
 
     let rubrics: string | null = null;
@@ -212,7 +208,7 @@ export const askGptModel = async (req: AuthorizedRequest, res: Response) => {
       await saveNewTraceData(
         userId,
         assignmentId || null,
-        stageId,
+        stageId || null,
         'ASK_GPT',
         JSON.stringify({
           question,
