@@ -13,15 +13,30 @@ import {
   fetchSubmissionsByAssignmentIdAndStudentId,
   saveNewAssignmentSubmission,
 } from 'models/assignmentSubmissionModel';
-import { saveNewTraceData } from 'models/traceDataModel';
+import {
+  fetchLatestLogByUserIdAssignmentId,
+  fetchPromptAnalyticsByAssignmentIdUserId,
+} from 'models/gptLogModel';
+import { fetchRemindersByAssignmentIdStudentId } from 'models/reminderModel';
+import {
+  fetchLatestDashboardLogByUserIdAssignmentId,
+  fetchPasteTextLogsByUserIdAssignmentId,
+  fetchTimelineDataByUserIdAssignmentId,
+  saveNewTraceData,
+} from 'models/traceDataModel';
 
 import {
   AssignmentRecentSubmissionListingItemResponse,
   AssignmentSubmissionListingItem,
   AssignmentSubmissionListingItemResponse,
 } from 'types/assignment';
+import { REMINDER_TYPES, StudentReminder } from 'types/reminder';
 import { AuthorizedRequest } from 'types/request';
+import getPlagiarisedSegments from 'utils/getPlagiarisedSegments';
+import parseListingQuery from 'utils/parseListingQuery';
 import parseQueryNumber from 'utils/parseQueryNumber';
+
+import { fetchGptUnstructuredLogsByUserIdAssignmentId } from './../models/gptLogModel';
 
 export const submitAssignment = async (
   req: AuthorizedRequest,
@@ -153,52 +168,53 @@ export const getAssignmentSubmissionListing = async (
       .json({ error_message: 'Missing assignment ID', error_code: 400 });
   }
 
-  const parsedLimit = parseQueryNumber(req.query.limit);
-  const parsedPage = parseQueryNumber(req.query.page);
+  try {
+    const { limit, page } = parseListingQuery(req);
 
-  const limit = parsedLimit !== undefined ? parsedLimit : 10;
-  const page = parsedPage !== undefined ? parsedPage : 1;
+    const filter = (req.query.filter || '') as string;
 
-  const filter = (req.query.filter || '') as string;
+    if (!isString(filter)) {
+      throw new Error('Invalid filter');
+    }
 
-  if (isNaN(limit) || isNaN(page) || limit <= 0 || page <= 0) {
+    try {
+      const resObj = {
+        page,
+        limit,
+        value: [] as AssignmentSubmissionListingItemResponse[],
+      };
+
+      const listingItems = await fetchLatestSubmissionsByAssignmentIdTeacherId(
+        assignmentId,
+        req.user.id,
+        limit,
+        page,
+        filter,
+      );
+      resObj.value = convertSubmissionToResponse(listingItems);
+
+      if (parseQueryNumber(req.query.skipCount)) {
+        return res.json(resObj);
+      }
+
+      const count = await fetchLatestSubmissionsCountByAssignmentIdTeacherId(
+        assignmentId,
+        req.user.id,
+        filter,
+      );
+      return res.json({ ...resObj, count });
+    } catch (err) {
+      return res.status(500).json({
+        error_message: 'Server error: ' + JSON.stringify(err),
+        error_code: 500,
+      });
+    }
+  } catch (e) {
     return res.status(400).json({
-      error_message: 'Invalid pagination parameters',
+      error_message: 'Invalid query parameters: ' + (e as Error).message,
       error_code: 400,
     });
   }
-
-  if (!isString(filter)) {
-    return res
-      .status(400)
-      .json({ error_message: 'Invalid filter', error_code: 400 });
-  }
-
-  const resObj = {
-    page,
-    limit,
-    value: [] as AssignmentSubmissionListingItemResponse[],
-  };
-
-  const listingItems = await fetchLatestSubmissionsByAssignmentIdTeacherId(
-    assignmentId,
-    req.user.id,
-    limit,
-    page,
-    filter,
-  );
-  resObj.value = convertSubmissionToResponse(listingItems);
-
-  if (parseQueryNumber(req.query.skipCount)) {
-    return res.json(resObj);
-  }
-
-  const count = await fetchLatestSubmissionsCountByAssignmentIdTeacherId(
-    assignmentId,
-    req.user.id,
-    filter,
-  );
-  return res.json({ ...resObj, count });
 };
 
 export const getRecentSubmissions = async (
@@ -210,53 +226,53 @@ export const getRecentSubmissions = async (
       .status(401)
       .json({ error_message: 'User not authenticated', error_code: 401 });
   }
+  try {
+    const { limit, page } = parseListingQuery(req);
 
-  const parsedLimit = parseQueryNumber(req.query.limit);
-  const parsedPage = parseQueryNumber(req.query.page);
+    const filter = (req.query.filter || '') as string;
 
-  const limit = parsedLimit !== undefined ? parsedLimit : 10;
-  const page = parsedPage !== undefined ? parsedPage : 1;
+    if (!isString(filter)) {
+      throw new Error('Invalid filter');
+    }
 
-  const filter = (req.query.filter || '') as string;
+    try {
+      const resObj = {
+        page,
+        limit,
+        value: [] as AssignmentRecentSubmissionListingItemResponse[],
+      };
 
-  if (isNaN(limit) || isNaN(page) || limit <= 0 || page <= 0) {
+      const listingItems = await fetchLatestSubmissionsByTeacherId(
+        req.user.id,
+        limit,
+        page,
+        filter,
+      );
+      resObj.value = convertSubmissionToResponse(
+        listingItems,
+      ) as AssignmentRecentSubmissionListingItemResponse[];
+
+      if (parseQueryNumber(req.query.skipCount)) {
+        return res.json(resObj);
+      }
+
+      const count = await fetchLatestSubmissionsCountByTeacherId(
+        req.user.id,
+        filter,
+      );
+      return res.json({ ...resObj, count });
+    } catch (err) {
+      return res.status(500).json({
+        error_message: 'Server error: ' + JSON.stringify(err),
+        error_code: 500,
+      });
+    }
+  } catch (e) {
     return res.status(400).json({
-      error_message: 'Invalid pagination parameters',
+      error_message: 'Invalid query parameters: ' + (e as Error).message,
       error_code: 400,
     });
   }
-
-  if (!isString(filter)) {
-    return res
-      .status(400)
-      .json({ error_message: 'Invalid filter', error_code: 400 });
-  }
-
-  const resObj = {
-    page,
-    limit,
-    value: [] as AssignmentRecentSubmissionListingItemResponse[],
-  };
-
-  const listingItems = await fetchLatestSubmissionsByTeacherId(
-    req.user.id,
-    limit,
-    page,
-    filter,
-  );
-  resObj.value = convertSubmissionToResponse(
-    listingItems,
-  ) as AssignmentRecentSubmissionListingItemResponse[];
-
-  if (parseQueryNumber(req.query.skipCount)) {
-    return res.json(resObj);
-  }
-
-  const count = await fetchLatestSubmissionsCountByTeacherId(
-    req.user.id,
-    filter,
-  );
-  return res.json({ ...resObj, count });
 };
 
 export const getSubmissionDetails = async (
@@ -292,12 +308,68 @@ export const getSubmissionDetails = async (
     return res.status(404).json({ error_message: 'No submission found' });
   }
 
-  // 2. Calculate plagiarism score
+  // 2. Get plagiarised segments
+  const writingSubmission = submissions.find(s => s.stage_type === 'writing');
+  let essay = '';
+  if (writingSubmission) {
+    const submissionContent = writingSubmission.content as any;
+    if ('content' in submissionContent) {
+      essay = submissionContent.content;
+    }
+  }
 
-  // 3. Get engagement details (a. last essay edit, b. last chatbot use, c. last dashboard view, d. plagiarism score)
+  const gptLogs = await fetchGptUnstructuredLogsByUserIdAssignmentId(
+    studentId,
+    assignmentId,
+  );
+  const pasteTextLogs = await fetchPasteTextLogsByUserIdAssignmentId(
+    studentId,
+    assignmentId,
+  );
+  const plagiarisedSegments = getPlagiarisedSegments(
+    essay,
+    gptLogs,
+    pasteTextLogs,
+  );
+
+  // 3. Get engagement details (a. last chatbot use, b. last dashboard view)
+  const latestAILog = await fetchLatestLogByUserIdAssignmentId(
+    studentId,
+    assignmentId,
+  );
+  const latestDashboardLog = await fetchLatestDashboardLogByUserIdAssignmentId(
+    studentId,
+    assignmentId,
+  );
+  const engagement = {
+    last_ai_use: latestAILog?.user_ask_time || null,
+    last_dashboard_use: latestDashboardLog?.saved_at || null,
+  };
+
   // 4. Get last reminders sent
+  const reminders = await fetchRemindersByAssignmentIdStudentId(
+    assignmentId,
+    studentId,
+  );
+  const lastRemindersByType = REMINDER_TYPES.reduce(
+    (obj, type) => {
+      return {
+        ...obj,
+        [type]: reminders.find(r => r.reminder_type === type) || null,
+      };
+    },
+    {} as { [key: string]: StudentReminder | null },
+  );
 
-  // 5. Analytics: Tools usage, ChatGPT prompt categories
+  // 5. Analytics: Timeline, tool usage
+  const timelineData = await fetchTimelineDataByUserIdAssignmentId(
+    studentId,
+    assignmentId,
+  );
+  const promptAnalytics = await fetchPromptAnalyticsByAssignmentIdUserId(
+    assignmentId,
+    studentId,
+  );
 
   return res.json({
     assignment: {
@@ -333,6 +405,13 @@ export const getSubmissionDetails = async (
           }
         : null,
     })),
+    analytics: {
+      prompt_data: promptAnalytics,
+      timeline_data: timelineData,
+      plagiarised_segments: plagiarisedSegments,
+    },
+    engagement,
+    last_reminders: lastRemindersByType,
   });
 };
 

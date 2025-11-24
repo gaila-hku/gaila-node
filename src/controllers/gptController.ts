@@ -28,6 +28,7 @@ import { saveNewTraceData } from 'models/traceDataModel';
 
 import { GptLog } from 'types/gpt';
 import { AuthorizedRequest } from 'types/request';
+import parseListingQuery from 'utils/parseListingQuery';
 import parseQueryNumber from 'utils/parseQueryNumber';
 
 const prepareGptRequest = async (
@@ -500,34 +501,35 @@ export const getGptChatHistory = async (
       .json({ error_message: 'User not authenticated', error_code: 401 });
   }
 
-  const parsedToolId = parseQueryNumber(req.query.assignment_tool_id);
-  const parsedLimit = parseQueryNumber(req.query.limit);
-  const parsedPage = parseQueryNumber(req.query.page);
+  try {
+    const parsedToolId = parseQueryNumber(req.query.assignment_tool_id);
+    if (isNil(parsedToolId) || isNaN(parsedToolId)) {
+      throw new Error('Invalid assignment tool id');
+    }
 
-  const limit = parsedLimit !== undefined ? parsedLimit : 10;
-  const page = parsedPage !== undefined ? parsedPage : 1;
+    const { limit, page } = parseListingQuery(req);
 
-  if (isNil(parsedToolId) || isNaN(parsedToolId)) {
-    return res
-      .status(400)
-      .json({ error_message: 'Invalid assignment tool id', error_code: 400 });
-  }
+    try {
+      const gptLogs = await fetchGptUnstructuredLogsByUserIdToolId(
+        req.user.id,
+        parsedToolId,
+        limit,
+        page,
+      );
 
-  if (isNaN(limit) || isNaN(page) || limit <= 0 || page <= 0) {
+      return res.json({ page, limit, value: gptLogs });
+    } catch (err) {
+      return res.status(500).json({
+        error_message: 'Server error: ' + JSON.stringify(err),
+        error_code: 500,
+      });
+    }
+  } catch (e) {
     return res.status(400).json({
-      error_message: 'Invalid pagination parameters',
+      error_message: 'Invalid query parameters: ' + (e as Error).message,
       error_code: 400,
     });
   }
-
-  const gptLogs = await fetchGptUnstructuredLogsByUserIdToolId(
-    req.user.id,
-    parsedToolId,
-    limit,
-    page,
-  );
-
-  return res.json({ page, limit, value: gptLogs });
 };
 
 export const getLatestGptStructuredOutput = async (

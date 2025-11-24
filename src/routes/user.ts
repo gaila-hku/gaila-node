@@ -10,12 +10,12 @@ const router = Router();
 
 router.get(
   '/class-options',
-  authorizeRole(['teacher', 'admin']),
+  authorizeRole(['teacher', 'teaching_assistant', 'admin']),
   getClassOptions,
 );
 router.get(
   '/student-options',
-  authorizeRole(['teacher', 'admin']),
+  authorizeRole(['teacher', 'teaching_assistant', 'admin']),
   getStudentOptions,
 );
 

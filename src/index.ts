@@ -8,6 +8,7 @@ import authRoutes from 'routes/auth';
 import classRoutes from 'routes/class';
 import gptRoutes from 'routes/gpt';
 import homeRoutes from 'routes/home';
+import reminderRoutes from 'routes/reminder';
 import traceDataRoutes from 'routes/trace-data';
 import userRoutes from 'routes/user';
 
@@ -30,6 +31,7 @@ app.use('/submission', authenticateToken, assignmentSubmissionRoutes);
 app.use('/user', authenticateToken, userRoutes);
 app.use('/trace-data', authenticateToken, traceDataRoutes);
 app.use('/gpt', authenticateToken, gptRoutes);
+app.use('/reminder', authenticateToken, reminderRoutes);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

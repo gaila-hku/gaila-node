@@ -29,12 +29,13 @@ export const saveNewTraceData = async (
   };
 };
 
-export const fetchPasteTextLogsByUserId = async (
+export const fetchPasteTextLogsByUserIdAssignmentId = async (
   userId: number,
+  assignmentId: number,
 ): Promise<TraceData[]> => {
   const [rows] = await pool.query(
-    'SELECT * FROM trace_data WHERE user_id = ? AND action = "paste_text" ORDER BY saved_at DESC',
-    [userId],
+    'SELECT * FROM trace_data WHERE user_id = ? AND assignment_id = ? AND action = "paste_text" ORDER BY saved_at DESC',
+    [userId, assignmentId],
   );
   return rows as TraceData[];
 };
@@ -80,4 +81,27 @@ export const fetchTimelineDataByUserIdAssignmentId = async (
   });
 
   return results;
+};
+
+export const fetchLatestDashboardLogByUserIdAssignmentId = async (
+  userId: number,
+  assignmentId: number,
+): Promise<TraceData | null> => {
+  const [rows] = await pool.query(
+    `
+      SELECT * FROM trace_data
+      WHERE assignment_id = ? AND user_id = ?
+        AND (
+          action = "ENTER_DASHBOARD"
+          OR action = "LEAVE_DASHBOARD"
+          OR (action = "SWITCH_DASHBOARD_ASSIGNMENT" AND JSON_EXTRACT(content, '$.assignment_id') = ?)
+          OR (action = "SWITCH_ESSAY_TAB" AND JSON_EXTRACT(content, '$.tab') = 'dashboard')
+        )
+      ORDER BY id DESC
+      LIMIT 1
+    `,
+    [assignmentId, userId, assignmentId],
+  );
+  const result = rows as TraceData[];
+  return result.length > 0 ? result[0] : null;
 };

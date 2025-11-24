@@ -3,7 +3,7 @@ export interface User {
   username: string;
   password: string;
   email: string;
-  role: 'admin' | 'teacher' | 'student';
+  role: 'admin' | 'teacher' | 'teaching_assistant' | 'student';
   last_access?: number;
   last_login?: number;
   time_created?: number;

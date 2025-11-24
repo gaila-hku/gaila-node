@@ -19,12 +19,9 @@ import {
   fetchLatestSubmissionsByAssignmentIdStudentId,
 } from 'models/assignmentSubmissionModel';
 import { fetchClassesByIds } from 'models/classModel';
+import { fetchPromptAnalyticsByAssignmentIdUserId } from 'models/gptLogModel';
 import {
-  fetchGptUnstructuredLogsByUserId,
-  fetchPromptAnalyticsByAssignmentIdUserId,
-} from 'models/gptLogModel';
-import {
-  fetchPasteTextLogsByUserId,
+  fetchPasteTextLogsByUserIdAssignmentId,
   fetchTimelineDataByUserIdAssignmentId,
 } from 'models/traceDataModel';
 import { fetchUsersByIds } from 'models/userModel';
@@ -34,6 +31,9 @@ import { Class, ClassOption } from 'types/class';
 import { AuthorizedRequest } from 'types/request';
 import { User, UserOption } from 'types/user';
 import getPlagiarisedSegments from 'utils/getPlagiarisedSegments';
+import parseListingQuery from 'utils/parseListingQuery';
+
+import { fetchGptUnstructuredLogsByUserIdAssignmentId } from './../models/gptLogModel';
 
 const parseQueryNumber = (v: any): number | undefined => {
   if (typeof v === 'string') return parseInt(v, 10);
@@ -46,74 +46,75 @@ export const getAssignmentListing = async (
   req: AuthorizedRequest,
   res: Response,
 ) => {
-  const parsedLimit = parseQueryNumber(req.query.limit);
-  const parsedPage = parseQueryNumber(req.query.page);
+  try {
+    const { limit, page, filter, sort, sortOrder } = parseListingQuery(req);
 
-  const limit = parsedLimit !== undefined ? parsedLimit : 10;
-  const page = parsedPage !== undefined ? parsedPage : 1;
+    if (!!sort && !isString(sort)) {
+      throw new Error('Invalid sort parameter');
+    }
 
-  const filter = req.query.filter ? JSON.parse(req.query.filter as string) : {};
-  const sort = req.query.sort;
-  const sortOrder = req.query.sort_order;
+    if (!!sortOrder && sortOrder !== 'asc' && sortOrder !== 'desc') {
+      throw new Error('Invalid sort order');
+    }
 
-  if (isNaN(limit) || isNaN(page) || limit <= 0 || page <= 0) {
+    try {
+      const resObj = { page, limit, value: [] as Assignment[] };
+
+      if (req.user?.role === 'student') {
+        resObj.value = await fetchAssignmentsByStudentId(
+          req.user.id,
+          limit,
+          page,
+          filter,
+          sort,
+          sortOrder as 'asc' | 'desc',
+        );
+      } else if (
+        req.user?.role === 'teacher' ||
+        req.user?.role === 'teaching_assistant' ||
+        req.user?.role === 'admin'
+      ) {
+        resObj.value = await fetchAssignmentsByTeacherId(
+          req.user.id,
+          limit,
+          page,
+          filter,
+          sort,
+          sortOrder as 'asc' | 'desc',
+        );
+      } else {
+        return res.status(403).json({
+          error_message: 'Access forbidden: insufficient rights',
+          error_code: 403,
+        });
+      }
+      if (parseQueryNumber(req.query.skipCount)) {
+        return res.json(resObj);
+      }
+
+      let count = 0;
+      if (req.user?.role === 'student') {
+        count = await fetchAssignmentsCountByStudentId(req.user.id, filter);
+      } else if (
+        req.user?.role === 'teacher' ||
+        req.user?.role === 'teaching_assistant' ||
+        req.user?.role === 'admin'
+      ) {
+        count = await fetchAssignmentsCountByTeacherId(req.user.id, filter);
+      }
+      return res.json({ ...resObj, count });
+    } catch (err) {
+      return res.status(500).json({
+        error_message: 'Server error: ' + JSON.stringify(err),
+        error_code: 500,
+      });
+    }
+  } catch (e) {
     return res.status(400).json({
-      error_message: 'Invalid pagination parameters',
+      error_message: 'Invalid query parameters: ' + (e as Error).message,
       error_code: 400,
     });
   }
-
-  if (!!sort && !isString(sort)) {
-    return res.status(400).json({
-      error_message: 'Invalid sort value',
-      error_code: 400,
-    });
-  }
-
-  if (!!sortOrder && sortOrder !== 'asc' && sortOrder !== 'desc') {
-    return res.status(400).json({
-      error_message: 'Invalid sort order',
-      error_code: 400,
-    });
-  }
-
-  const resObj = { page, limit, value: [] as Assignment[] };
-
-  if (req.user?.role === 'student') {
-    resObj.value = await fetchAssignmentsByStudentId(
-      req.user.id,
-      limit,
-      page,
-      filter,
-      sort,
-      sortOrder as 'asc' | 'desc',
-    );
-  } else if (req.user?.role === 'teacher' || req.user?.role === 'admin') {
-    resObj.value = await fetchAssignmentsByTeacherId(
-      req.user.id,
-      limit,
-      page,
-      filter,
-      sort,
-      sortOrder as 'asc' | 'desc',
-    );
-  } else {
-    return res.status(403).json({
-      error_message: 'Access forbidden: insufficient rights',
-      error_code: 403,
-    });
-  }
-  if (parseQueryNumber(req.query.skipCount)) {
-    return res.json(resObj);
-  }
-
-  let count = 0;
-  if (req.user?.role === 'student') {
-    count = await fetchAssignmentsCountByStudentId(req.user.id, filter);
-  } else if (req.user?.role === 'teacher' || req.user?.role === 'admin') {
-    count = await fetchAssignmentsCountByTeacherId(req.user.id, filter);
-  }
-  return res.json({ ...resObj, count });
 };
 
 export const getAssignmentDetails = async (
@@ -514,8 +515,14 @@ export const getStudentAssignmentAnalytics = async (
   );
 
   // 3. Plagiarism percentage
-  const gptLogs = await fetchGptUnstructuredLogsByUserId(req.user.id);
-  const pasteTextLogs = await fetchPasteTextLogsByUserId(req.user.id);
+  const gptLogs = await fetchGptUnstructuredLogsByUserIdAssignmentId(
+    req.user.id,
+    assignmentId,
+  );
+  const pasteTextLogs = await fetchPasteTextLogsByUserIdAssignmentId(
+    req.user.id,
+    assignmentId,
+  );
   const plagiarisedSegments = getPlagiarisedSegments(
     essay,
     gptLogs,
@@ -561,7 +568,11 @@ export const getAssignmentOptions = async (
 
   if (req.user?.role === 'student') {
     value = await fetchAssignmentOptionsByStudentId(req.user.id);
-  } else if (req.user?.role === 'teacher' || req.user?.role === 'admin') {
+  } else if (
+    req.user?.role === 'teacher' ||
+    req.user?.role === 'teaching_assistant' ||
+    req.user?.role === 'admin'
+  ) {
     value = await fetchAssignmentOptionsByTeacherId(req.user.id);
   } else {
     return res.status(403).json({

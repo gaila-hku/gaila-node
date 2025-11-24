@@ -82,16 +82,18 @@ export const fetchGptUnstructuredLogsByUserIdToolId = async (
   return rows as GptLog[];
 };
 
-export const fetchGptUnstructuredLogsByUserId = async (
+export const fetchGptUnstructuredLogsByUserIdAssignmentId = async (
   userId: number,
+  assignmentId: number,
 ): Promise<GptLog[]> => {
   const [rows] = await pool.query(
     `
       SELECT * FROM gpt_logs
-      WHERE user_id = ? AND is_structured = 0
+      INNER JOIN assignment_tools at ON gpt_logs.assignment_tool_id = at.id AND at.assignment_id = ?
+      WHERE user_id = ?  AND is_structured = 0
       ORDER BY user_ask_time DESC
     `,
-    [userId],
+    [assignmentId, userId],
   );
   return rows as GptLog[];
 };
@@ -103,6 +105,24 @@ export const fetchLatestStructuredGptLogsByUserIdToolId = async (
   const [rows] = await pool.query(
     `SELECT * FROM gpt_logs WHERE user_id = ? AND assignment_tool_id = ? AND is_structured = 1 ORDER BY user_ask_time DESC LIMIT 1`,
     [userId, assignmentToolId],
+  );
+  const result = rows as GptLog[];
+  return result.length > 0 ? result[0] : null;
+};
+
+export const fetchLatestLogByUserIdAssignmentId = async (
+  userId: number,
+  assignmentId: number,
+): Promise<GptLog | null> => {
+  const [rows] = await pool.query(
+    `
+      SELECT log.* FROM gpt_logs log
+      INNER JOIN assignment_tools at ON log.assignment_tool_id = at.id AND at.assignment_id = ?
+      WHERE log.user_id = ?
+      ORDER BY log.id DESC
+      LIMIT 1
+    `,
+    [assignmentId, userId],
   );
   const result = rows as GptLog[];
   return result.length > 0 ? result[0] : null;

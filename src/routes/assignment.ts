@@ -24,7 +24,7 @@ router.get(
 );
 router.get(
   '/analytics-teacher',
-  authorizeRole(['teacher', 'admin']),
+  authorizeRole(['teacher', 'teaching_assistant', 'admin']),
   getStudentAssignmentAnalytics,
 );
 router.get('/options', authorizeRole(), getAssignmentOptions);

@@ -14,16 +14,8 @@ const router = Router();
 router.post('/ask', askGptModel);
 router.get('/listing-chat', getGptChatHistory);
 router.post('/ask-dictionary', askDictionaryAgent);
-router.post(
-  '/ask-grammar',
-  authorizeRole(['student', 'teacher', 'admin']),
-  askGrammarAgent,
-);
-router.post(
-  '/ask-autograde',
-  authorizeRole(['student', 'teacher', 'admin']),
-  askAutogradeAgent,
-);
+router.post('/ask-grammar', authorizeRole(), askGrammarAgent);
+router.post('/ask-autograde', authorizeRole(), askAutogradeAgent);
 router.get('/latest-structured', getLatestGptStructuredOutput);
 
 export default router;
