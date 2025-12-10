@@ -26,6 +26,7 @@ import {
 } from 'models/gptLogModel';
 import { saveNewTraceData } from 'models/traceDataModel';
 
+import { AssignmentEssayContent } from 'types/assignment';
 import { GptLog } from 'types/gpt';
 import { AuthorizedRequest } from 'types/request';
 import parseListingQuery from 'utils/parseListingQuery';
@@ -100,9 +101,10 @@ const preapreGptEssay = async (
     if (!latestEssaySubmission) {
       throw new Error('Essay not given and assignment submission not found');
     }
-    const submissionContent = latestEssaySubmission.content as any;
-    if ('content' in submissionContent) {
-      essay = submissionContent.content;
+    const submissionContent =
+      latestEssaySubmission.content as AssignmentEssayContent;
+    if ('essay' in submissionContent) {
+      essay = submissionContent.essay;
     } else {
       essay = JSON.stringify(submissionContent);
     }

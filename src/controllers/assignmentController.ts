@@ -26,7 +26,12 @@ import {
 } from 'models/traceDataModel';
 import { fetchUsersByIds } from 'models/userModel';
 
-import { Assignment, AssignmentOption, AssignmentView } from 'types/assignment';
+import {
+  Assignment,
+  AssignmentEssayContent,
+  AssignmentOption,
+  AssignmentView,
+} from 'types/assignment';
 import { Class, ClassOption } from 'types/class';
 import { AuthorizedRequest } from 'types/request';
 import { User, UserOption } from 'types/user';
@@ -497,9 +502,10 @@ export const getStudentAssignmentAnalytics = async (
     throw new Error('Essay not given and assignment submission not found');
   }
   let essay = '';
-  const submissionContent = latestEssaySubmission.content as any;
-  if ('content' in submissionContent) {
-    essay = submissionContent.content;
+  const submissionContent =
+    latestEssaySubmission.content as AssignmentEssayContent;
+  if ('essay' in submissionContent) {
+    essay = submissionContent.essay;
   }
 
   // 1. Prompt counts and class averages

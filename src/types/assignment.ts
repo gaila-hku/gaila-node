@@ -110,7 +110,10 @@ export interface AssignmentSubmission {
   assignment_id: number;
   stage_id: number;
   student_id: number;
-  content?: string;
+  content?:
+    | AssignmentGoalContent
+    | AssignmentEssayContent
+    | AssignmentReflectionContent;
   submitted_at?: number;
   is_final?: boolean;
 }
@@ -187,7 +190,10 @@ export interface AssignmentSubmissionDetail {
   first_name: string;
   last_name: string;
 
-  content?: string;
+  content?:
+    | AssignmentGoalContent
+    | AssignmentEssayContent
+    | AssignmentReflectionContent;
   submitted_at?: number;
   is_final?: boolean;
 
@@ -196,6 +202,31 @@ export interface AssignmentSubmissionDetail {
   rubrics_breakdown?: string;
   graded_at?: number;
   graded_by: number;
+}
+
+export interface AssignmentGoalContent {
+  writing_goals: AssignmentGoal[];
+  ai_goals: AssignmentGoal[];
+  isGoalConfirmed: boolean;
+}
+
+export interface AssignmentGoal {
+  goalText: string;
+  strategies: {
+    text: string;
+    completed?: boolean;
+  }[];
+}
+
+export interface AssignmentEssayContent {
+  title: string;
+  outline: string;
+  essay: string;
+  goals: AssignmentGoalContent | null;
+}
+
+export interface AssignmentReflectionContent {
+  reflections: { [key: string]: string };
 }
 
 export interface AssignmentOption {

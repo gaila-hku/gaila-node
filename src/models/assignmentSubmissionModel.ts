@@ -80,7 +80,7 @@ export const saveNewAssignmentSubmission = async (
     assignment_id: assignmentId,
     stage_id: stageId,
     student_id: studentId,
-    content,
+    content: JSON.parse(content),
     submitted_at: Date.now(),
     is_final: isFinal,
   };

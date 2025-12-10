@@ -26,6 +26,7 @@ import {
 } from 'models/traceDataModel';
 
 import {
+  AssignmentEssayContent,
   AssignmentRecentSubmissionListingItemResponse,
   AssignmentSubmissionListingItem,
   AssignmentSubmissionListingItemResponse,
@@ -312,9 +313,10 @@ export const getSubmissionDetails = async (
   const writingSubmission = submissions.find(s => s.stage_type === 'writing');
   let essay = '';
   if (writingSubmission) {
-    const submissionContent = writingSubmission.content as any;
-    if ('content' in submissionContent) {
-      essay = submissionContent.content;
+    const submissionContent =
+      writingSubmission.content as AssignmentEssayContent;
+    if ('essay' in submissionContent) {
+      essay = submissionContent.essay;
     }
   }
 
