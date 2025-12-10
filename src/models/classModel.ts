@@ -9,7 +9,7 @@ export const fetchClassListingByTeacherId = async (
   page: number,
 ): Promise<Class[]> => {
   const [classRows] = await pool.query(
-    'SELECT * FROM classes JOIN class_teachers ON classes.id = class_teachers.class_id WHERE class_teachers.teacher_id = ? LIMIT ? OFFSET ?',
+    'SELECT classes.* FROM classes JOIN class_teachers ON classes.id = class_teachers.class_id WHERE class_teachers.teacher_id = ? LIMIT ? OFFSET ?',
     [id, limit, (page - 1) * limit],
   );
   return classRows as Class[];
@@ -48,7 +48,7 @@ export const fetchClassListingByStudentId = async (
   page: number,
 ): Promise<Class[]> => {
   const [classStudentRows] = await pool.query(
-    'SELECT * FROM classes JOIN class_students ON classes.id = class_students.student_id WHERE student_id = ? LIMIT ? OFFSET ?',
+    'SELECT classes.* FROM classes JOIN class_students ON classes.id = class_students.student_id WHERE student_id = ? LIMIT ? OFFSET ?',
     [id, limit, (page - 1) * limit],
   );
   return classStudentRows as Class[];
