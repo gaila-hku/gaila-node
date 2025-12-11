@@ -12,6 +12,7 @@ export interface Assignment {
   requirements?: number;
   rubrics?: string;
   tips?: string;
+  config?: string;
   created_by: number;
 }
 
@@ -180,6 +181,7 @@ export interface AssignmentSubmissionDetail {
   due_date?: number;
   type?: string;
   rubrics?: string;
+  config?: string;
 
   stage_id: number;
   stage_type: string;

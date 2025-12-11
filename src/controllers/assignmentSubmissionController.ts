@@ -382,6 +382,7 @@ export const getSubmissionDetails = async (
       due_date: submissions[0].due_date,
       type: submissions[0].type,
       rubrics: submissions[0].rubrics,
+      config: submissions[0].config,
     },
     stages,
     student: {

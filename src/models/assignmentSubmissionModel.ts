@@ -305,7 +305,7 @@ export const fetchSubmissionsByAssignmentIdAndStudentId = async (
   const [rows] = await pool.query(
     `
       SELECT s.*,
-        a.title, a.description, a.start_date, a.due_date, a.type, a.rubrics,
+        a.title, a.description, a.start_date, a.due_date, a.type, a.rubrics, a.config,
         stages.stage_type, stages.order_index,
         users.username, users.first_name, users.last_name,
         ag.overall_score, ag.overall_feedback, ag.rubrics_breakdown, ag.graded_at, ag.graded_by
