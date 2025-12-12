@@ -3,6 +3,7 @@ import { ResultSetHeader } from 'mysql2';
 
 import pool from 'config/db';
 import {
+  AgentUsageData,
   GptAnalytics,
   GptAnalyticsCountDatabaseItem,
   GptAnalyticsCountDatabaseToolItem,
@@ -265,4 +266,62 @@ export const fetchPromptAnalyticsByAssignmentIdUserId = async (
         toolClassAvgResult.find(i => i.item_key === item.item_key)?.count ?? 0,
     })),
   };
+};
+
+export const fetchAgentUsageByAssignmentIdUserId = async (
+  assignmentId: number,
+  userId: number,
+): Promise<AgentUsageData> => {
+  const [toolRows] = await pool.query(
+    `
+      SELECT tool_key FROM assignment_tools
+      WHERE assignment_id = ?
+    `,
+    [assignmentId, userId],
+  );
+  const toolResult = toolRows as { tool_key: string }[];
+  const toolKeys = toolResult
+    .map(item => item.tool_key)
+    .filter(
+      s =>
+        ![
+          'teacher_grading',
+          'goal_general',
+          'writing_general',
+          'reflection_general',
+        ].includes(s),
+    );
+
+  const [structuredRows] = await pool.query(
+    `
+      SELECT tool_key as item_key, COUNT(*) as count FROM gpt_logs log
+      INNER JOIN assignment_tools at ON log.assignment_tool_id = at.id AND at.assignment_id = ?
+      WHERE log.user_id = ? AND log.is_structured = 1
+      GROUP BY tool_key
+    `,
+    [assignmentId, userId],
+  );
+  const structuredResult = structuredRows as {
+    item_key: string;
+    count: number;
+  }[];
+  const [unstructuredRows] = await pool.query(
+    `
+      SELECT tool_key as item_key, COUNT(*) as count FROM gpt_logs log
+      INNER JOIN assignment_tools at ON log.assignment_tool_id = at.id AND at.assignment_id = ?
+      WHERE log.user_id = ? AND log.is_structured = 0
+      GROUP BY tool_key
+    `,
+    [assignmentId, userId],
+  );
+  const unstructuredResult = unstructuredRows as {
+    item_key: string;
+    count: number;
+  }[];
+
+  return toolKeys.map(key => ({
+    agent_type: key,
+    agent_uses: structuredResult.find(i => i.item_key === key)?.count ?? 0,
+    prompts: unstructuredResult.find(i => i.item_key === key)?.count ?? 0,
+  }));
 };

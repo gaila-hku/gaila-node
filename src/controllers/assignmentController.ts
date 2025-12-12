@@ -19,11 +19,11 @@ import {
   fetchLatestSubmissionsByAssignmentIdStudentId,
 } from 'models/assignmentSubmissionModel';
 import { fetchClassesByIds } from 'models/classModel';
-import { fetchPromptAnalyticsByAssignmentIdUserId } from 'models/gptLogModel';
 import {
-  fetchPasteTextLogsByUserIdAssignmentId,
-  fetchTimelineDataByUserIdAssignmentId,
-} from 'models/traceDataModel';
+  fetchAgentUsageByAssignmentIdUserId,
+  fetchPromptAnalyticsByAssignmentIdUserId,
+} from 'models/gptLogModel';
+import { fetchPasteTextLogsByUserIdAssignmentId } from 'models/traceDataModel';
 import { fetchUsersByIds } from 'models/userModel';
 
 import {
@@ -508,19 +508,21 @@ export const getStudentAssignmentAnalytics = async (
     essay = submissionContent.essay;
   }
 
-  // 1. Prompt counts and class averages
+  const agentUsage = await fetchAgentUsageByAssignmentIdUserId(
+    assignmentId,
+    req.user.id,
+  );
+
   const promptAnalytics = await fetchPromptAnalyticsByAssignmentIdUserId(
     assignmentId,
     req.user.id,
   );
 
-  // 2. Writing stage timeline
-  const timelineData = await fetchTimelineDataByUserIdAssignmentId(
-    req.user.id,
-    assignmentId,
-  );
+  // const timelineData = await fetchTimelineDataByUserIdAssignmentId(
+  //   req.user.id,
+  //   assignmentId,
+  // );
 
-  // 3. Plagiarism percentage
   const gptLogs = await fetchGptUnstructuredLogsByUserIdAssignmentId(
     req.user.id,
     assignmentId,
@@ -536,8 +538,9 @@ export const getStudentAssignmentAnalytics = async (
   );
 
   return res.json({
+    agent_usage: agentUsage,
     prompt_data: promptAnalytics,
-    timeline_data: timelineData,
+    // timeline_data: timelineData,
     plagiarised_segments: plagiarisedSegments,
   });
 };

@@ -47,17 +47,17 @@ export const fetchAssignmentsByTeacherId = async (
           CASE WHEN COUNT(DISTINCT fs.stage_id) = COUNT(DISTINCT ast.id) AND COUNT(DISTINCT g.submission_id) > 0 THEN 1 ELSE 0 END as graded,
           MAX(g.overall_score) as score
         FROM assignments a
-        JOIN assignment_teachers at ON a.id = at.assignment_id
+        LEFT JOIN assignment_teachers at ON a.id = at.assignment_id
         JOIN (
           SELECT DISTINCT student_id, assignment_id from assignment_targets WHERE student_id is not null
           UNION
           SELECT DISTINCT cs.student_id, assignment_id from assignment_targets at 
           JOIN class_students cs ON cs.class_id = at.class_id
-        ) student_ids ON student_ids.assignment_id = at.assignment_id
+        ) student_ids ON student_ids.assignment_id = a.id
         JOIN assignment_stages ast ON a.id = ast.assignment_id
         LEFT JOIN assignment_submissions fs ON ast.id = fs.stage_id AND fs.student_id = student_ids.student_id AND fs.is_final = 1
         LEFT JOIN assignment_grades g ON fs.id = g.submission_id
-        WHERE at.teacher_id = ? AND title like '%${filter.search}%' ${filter.type ? `AND type = '${filter.type}'` : ''}
+        WHERE (at.teacher_id = ? OR a.created_by = ?) AND title like '%${filter.search}%' ${filter.type ? `AND type = '${filter.type}'` : ''}
         GROUP BY a.id, student_ids.student_id
       ) counts
       GROUP BY counts.id
@@ -65,7 +65,7 @@ export const fetchAssignmentsByTeacherId = async (
       ${filter.status ? `WHERE status = '${filter.status}'` : ''}
       ${sort ? `ORDER BY ${sort} ${sortOrder || 'asc'}` : ''}
       LIMIT ? OFFSET ?`,
-    [teacherId, limit, (page - 1) * limit],
+    [teacherId, teacherId, limit, (page - 1) * limit],
   );
   return assignmentRows as AssignmentTeacherListingItem[];
 };
@@ -85,11 +85,11 @@ export const fetchAssignmentsCountByTeacherId = async (
         END AS status
       FROM assignments a
       LEFT JOIN assignment_teachers at ON a.id = at.assignment_id
-      WHERE at.teacher_id = ? AND title like '%${filter.search}%' ${filter.type ? `AND type = '${filter.type}'` : ''}
+      WHERE (at.teacher_id = ? OR a.created_by = ?) AND title like '%${filter.search}%' ${filter.type ? `AND type = '${filter.type}'` : ''}
     ) t
       ${filter.status ? `WHERE status = '${filter.status}'` : ''}
     `,
-    [id],
+    [id, id],
   );
   const result = rows as { 'COUNT(*)': number }[];
   return result.length > 0 ? result[0]['COUNT(*)'] : 0;
@@ -522,7 +522,7 @@ export const fetchStudentIdsByAssignmentId = async (
     `
       SELECT DISTINCT at.student_id as student_id
       FROM assignment_targets at
-      WHERE assignment_id = ? AND at.student_id NOT IN (${placeholder})
+      WHERE assignment_id = ? ${placeholder.length ? `AND at.student_id NOT IN (${placeholder})` : ''}
     `,
     [assignmentId, ...classStudentIds],
   );
@@ -557,9 +557,9 @@ export const fetchAssignmentOptionsByTeacherId = async (
       SELECT DISTINCT a.id, a.title
       FROM assignments a
       JOIN assignment_teachers at ON a.id = at.assignment_id
-      WHERE at.teacher_id = ?
+      WHERE at.teacher_id = ? OR a.created_by = ?
     `,
-    [teacherId],
+    [teacherId, teacherId],
   );
 
   return rows as AssignmentOption[];

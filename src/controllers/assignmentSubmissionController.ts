@@ -14,6 +14,7 @@ import {
   saveNewAssignmentSubmission,
 } from 'models/assignmentSubmissionModel';
 import {
+  fetchAgentUsageByAssignmentIdUserId,
   fetchLatestLogByUserIdAssignmentId,
   fetchPromptAnalyticsByAssignmentIdUserId,
 } from 'models/gptLogModel';
@@ -21,7 +22,6 @@ import { fetchRemindersByAssignmentIdStudentId } from 'models/reminderModel';
 import {
   fetchLatestDashboardLogByUserIdAssignmentId,
   fetchPasteTextLogsByUserIdAssignmentId,
-  fetchTimelineDataByUserIdAssignmentId,
   saveNewTraceData,
 } from 'models/traceDataModel';
 
@@ -364,9 +364,13 @@ export const getSubmissionDetails = async (
   );
 
   // 5. Analytics: Timeline, tool usage
-  const timelineData = await fetchTimelineDataByUserIdAssignmentId(
-    studentId,
+  // const timelineData = await fetchTimelineDataByUserIdAssignmentId(
+  //   studentId,
+  //   assignmentId,
+  // );
+  const agentUsage = await fetchAgentUsageByAssignmentIdUserId(
     assignmentId,
+    studentId,
   );
   const promptAnalytics = await fetchPromptAnalyticsByAssignmentIdUserId(
     assignmentId,
@@ -409,8 +413,9 @@ export const getSubmissionDetails = async (
         : null,
     })),
     analytics: {
+      agent_usage: agentUsage,
       prompt_data: promptAnalytics,
-      timeline_data: timelineData,
+      // timeline_data: timelineData,
       plagiarised_segments: plagiarisedSegments,
     },
     engagement,

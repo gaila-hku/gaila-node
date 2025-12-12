@@ -100,3 +100,9 @@ export interface GptAnalyticsCountItem {
   count: number | undefined;
   class_average: number;
 }
+
+export type AgentUsageData = {
+  agent_type: string;
+  agent_uses: number;
+  prompts: number;
+}[];
