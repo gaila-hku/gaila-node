@@ -42,12 +42,18 @@ export interface AssignmentStageCreatePayload {
   tools: { key: string; enabled: boolean }[];
 }
 
+export interface ChatbotConfig {
+  max_tokens: number;
+  choices: number;
+  temperature: number;
+}
+
 export interface ChatbotTemplates {
   id: number;
   name: string;
   description: string;
   default_role_prompt: string;
-  default_config: string;
+  default_config: ChatbotConfig;
   default_model: string;
   created_at: string;
 }
@@ -59,7 +65,7 @@ export interface AssignmentTool {
   tool_key: string;
   chatbot_template_id?: number;
   custom_role_prompt?: string;
-  custom_config?: string;
+  custom_config?: ChatbotConfig;
   enabled: boolean;
 }
 

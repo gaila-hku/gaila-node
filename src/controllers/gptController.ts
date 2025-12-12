@@ -4,7 +4,9 @@ import {
   fetchChatResponse,
   fetchDictionaryAgentResponse,
   fetchGrammarAgentResponse,
+  fetchIdeationAgentResponse,
   fetchPromptClassificationResponse,
+  fetchRevisionAgentResponse,
 } from 'external/chat-service';
 import { isArray, isNil, isNumber } from 'lodash-es';
 import {
@@ -14,7 +16,7 @@ import {
 import { fetchLatestSubmissionByStageIdStudentId } from 'models/assignmentSubmissionModel';
 import {
   fetchAssignmentToolByAssignmentToolId,
-  fetchRolePromptByAssignmentToolId,
+  fetchToolSettingsByAssignmentToolId,
 } from 'models/assignmentToolModel';
 import {
   fetchGptUnstructuredLogsByUserIdToolId,
@@ -55,10 +57,12 @@ const prepareGptRequest = async (
   }
   const { question, assignment_tool_id: assignmentToolId } = req.body;
 
-  const rolePrompt = await fetchRolePromptByAssignmentToolId(assignmentToolId);
-  if (!rolePrompt) {
-    throw new Error('Role prompt not found');
+  const settings = await fetchToolSettingsByAssignmentToolId(assignmentToolId);
+  if (!settings) {
+    throw new Error('Tool settings not found');
   }
+
+  const { rolePrompt, config } = settings;
 
   const assignmentTool =
     await fetchAssignmentToolByAssignmentToolId(assignmentToolId);
@@ -69,6 +73,12 @@ const prepareGptRequest = async (
   const { assignment_id: assignmentId, assignment_stage_id: stageId } =
     assignmentTool;
 
+  if (!assignmentId) {
+    throw new Error('Invalid assignment tool');
+  }
+
+  const taskDescription = await fetchAssignmentDescriptionById(assignmentId);
+
   const pastMessages = isStructured
     ? []
     : await fetchLatestGptLogByUserIdToolId(req.user.id, assignmentToolId, 5);
@@ -78,10 +88,12 @@ const prepareGptRequest = async (
     question,
     assignmentToolId,
     rolePrompt,
+    config,
     assignmentId,
     stageId,
     isStructured,
     pastMessages,
+    taskDescription,
   };
 };
 
@@ -118,14 +130,13 @@ const CATEGORY_BATCH_SIZE = 5;
 
 const classifyPrompt = async (
   gptlog: GptLog,
-  assignmentId: number,
+  taskDescription: string | null,
   forceBatch?: boolean,
 ) => {
   pendingCateogryLogs.push(gptlog);
   if (pendingCateogryLogs.length < CATEGORY_BATCH_SIZE && !forceBatch) {
     return;
   }
-  const taskDescription = await fetchAssignmentDescriptionById(assignmentId);
   const res = await fetchPromptClassificationResponse(
     taskDescription,
     pendingCateogryLogs.map(s => s.user_question),
@@ -170,6 +181,8 @@ export const askGptModel = async (req: AuthorizedRequest, res: Response) => {
       assignmentId,
       stageId,
       pastMessages,
+      taskDescription,
+      config,
     } = await prepareGptRequest(req);
 
     const essay = await preapreGptEssay(req, stageId);
@@ -187,6 +200,8 @@ export const askGptModel = async (req: AuthorizedRequest, res: Response) => {
         essay || '',
         JSON.stringify(rubrics || ''),
         pastMessages,
+        taskDescription || '',
+        config,
       );
 
       if (!chatRes.response.choices[0]) {
@@ -220,8 +235,107 @@ export const askGptModel = async (req: AuthorizedRequest, res: Response) => {
       );
 
       if (assignmentId) {
-        classifyPrompt(gptLog, assignmentId);
+        classifyPrompt(gptLog, taskDescription);
       }
+
+      return res.json(gptLog);
+    } catch (e) {
+      console.error(e);
+      return res.status(500).json({
+        error_message: 'ChatGPT error: ' + JSON.stringify(e),
+        error_code: 500,
+      });
+    }
+  } catch (e) {
+    return res.status(400).json({
+      error_message: (e as Error).message,
+      error_code: 400,
+    });
+  }
+};
+
+export const askIdeationAgent = async (
+  req: AuthorizedRequest,
+  res: Response,
+) => {
+  try {
+    const {
+      userId,
+      question,
+      assignmentToolId,
+      rolePrompt,
+      assignmentId,
+      stageId,
+      isStructured,
+      pastMessages,
+      taskDescription,
+      config,
+    } = await prepareGptRequest(req, { questionUnstructuredOnly: true });
+
+    if (!stageId) {
+      throw new Error('Invalid assignment tool ID');
+    }
+
+    if (isStructured && !req.body.ideation_stage) {
+      throw new Error('Required ideation stage');
+    }
+
+    if (!assignmentId) {
+      throw new Error('Invalid assignment tool ID');
+    }
+
+    const rubrics = await fetchRubricsByAssignmentId(assignmentId);
+
+    if (!rubrics) {
+      throw new Error('Rubrics not found');
+    }
+
+    try {
+      const userAskTime = Date.now();
+      const chatRes = await fetchIdeationAgentResponse(
+        question,
+        rolePrompt,
+        pastMessages,
+        JSON.stringify(rubrics),
+        taskDescription || '',
+        isStructured,
+        req.body.ideation_stage,
+        config,
+      );
+
+      if (!chatRes.response.choices[0]) {
+        throw new Error('Invalid response from ChatGPT');
+      }
+      const gptAnswer = isStructured
+        ? chatRes.response.choices[0].message.parsed
+        : chatRes.response.choices[0].message.content;
+      if (!gptAnswer) {
+        throw new Error('No response content from ChatGPT');
+      }
+
+      const finalQuestion = isStructured ? 'IDEATION' : question;
+
+      const gptLog = await saveNewGptLog(
+        userId,
+        assignmentToolId,
+        finalQuestion,
+        JSON.stringify(gptAnswer),
+        JSON.stringify(chatRes.wholeprompt),
+        userAskTime,
+        Date.now(),
+        isStructured,
+      );
+
+      await saveNewTraceData(
+        userId,
+        assignmentId || null,
+        stageId,
+        'ASK_GPT',
+        JSON.stringify({
+          question: finalQuestion,
+          answer: gptAnswer,
+        }),
+      );
 
       return res.json(gptLog);
     } catch (e) {
@@ -253,6 +367,7 @@ export const askDictionaryAgent = async (
       stageId,
       isStructured,
       pastMessages,
+      config,
     } = await prepareGptRequest(req);
 
     if (!stageId) {
@@ -266,6 +381,7 @@ export const askDictionaryAgent = async (
         rolePrompt,
         pastMessages,
         isStructured,
+        config,
       );
 
       if (!chatRes.response.choices[0]) {
@@ -330,6 +446,7 @@ export const askGrammarAgent = async (
       stageId,
       isStructured,
       pastMessages,
+      config,
     } = await prepareGptRequest(req, { questionUnstructuredOnly: true });
 
     if (!stageId) {
@@ -346,6 +463,7 @@ export const askGrammarAgent = async (
         essay,
         pastMessages,
         isStructured,
+        config,
       );
 
       if (!chatRes.response.choices[0]) {
@@ -412,6 +530,8 @@ export const askAutogradeAgent = async (
       stageId,
       isStructured,
       pastMessages,
+      taskDescription,
+      config,
     } = await prepareGptRequest(req, { questionUnstructuredOnly: true });
 
     if (req.user?.role === 'student' && !stageId) {
@@ -438,7 +558,9 @@ export const askAutogradeAgent = async (
         essay,
         JSON.stringify(rubrics),
         pastMessages,
+        taskDescription || '',
         isStructured,
+        config,
       );
 
       if (!chatRes.response.choices[0]) {
@@ -476,6 +598,103 @@ export const askAutogradeAgent = async (
           }),
         );
       }
+
+      return res.json(gptLog);
+    } catch (e) {
+      console.error(e);
+      return res.status(500).json({
+        error_message: 'ChatGPT error: ' + JSON.stringify(e),
+        error_code: 500,
+      });
+    }
+  } catch (e) {
+    return res.status(400).json({
+      error_message: (e as Error).message,
+      error_code: 400,
+    });
+  }
+};
+
+export const askRevisionAgent = async (
+  req: AuthorizedRequest,
+  res: Response,
+) => {
+  try {
+    const {
+      userId,
+      question,
+      assignmentToolId,
+      rolePrompt,
+      assignmentId,
+      stageId,
+      isStructured,
+      pastMessages,
+      taskDescription,
+      config,
+    } = await prepareGptRequest(req, { questionUnstructuredOnly: true });
+
+    if (!stageId) {
+      throw new Error('Invalid assignment tool ID');
+    }
+
+    const essay = await preapreGptEssay(req, stageId);
+
+    if (!assignmentId) {
+      throw new Error('Invalid assignment tool ID');
+    }
+
+    const rubrics = await fetchRubricsByAssignmentId(assignmentId);
+
+    if (!rubrics) {
+      throw new Error('Rubrics not found');
+    }
+
+    try {
+      const userAskTime = Date.now();
+      const chatRes = await fetchRevisionAgentResponse(
+        question,
+        rolePrompt,
+        essay,
+        JSON.stringify(rubrics),
+        pastMessages,
+        taskDescription || '',
+        isStructured,
+        config,
+      );
+
+      if (!chatRes.response.choices[0]) {
+        throw new Error('Invalid response from ChatGPT');
+      }
+      const gptAnswer = isStructured
+        ? chatRes.response.choices[0].message.parsed
+        : chatRes.response.choices[0].message.content;
+      if (!gptAnswer) {
+        throw new Error('No response content from ChatGPT');
+      }
+
+      const finalQuestion = isStructured ? 'REVISION' : question;
+
+      const gptLog = await saveNewGptLog(
+        userId,
+        assignmentToolId,
+        finalQuestion,
+        JSON.stringify(gptAnswer),
+        JSON.stringify(chatRes.wholeprompt),
+        userAskTime,
+        Date.now(),
+        isStructured,
+      );
+
+      await saveNewTraceData(
+        userId,
+        assignmentId || null,
+        stageId,
+        'ASK_GPT',
+        JSON.stringify({
+          question: finalQuestion,
+          answer: gptAnswer,
+        }),
+      );
 
       return res.json(gptLog);
     } catch (e) {
@@ -587,9 +806,10 @@ export const refreshPromptCategories = async (
   for (const assignmentId of assignmentIds) {
     console.info(`Refreshing prompt categories for assignment ${assignmentId}`);
     const logs = await fetchUncategorizedPromptsByAssignmentId(assignmentId);
+    const taskDescription = await fetchAssignmentDescriptionById(assignmentId);
     for (const [index, log] of logs.entries()) {
       console.info(`Refreshing prompt ${log.user_question}`);
-      await classifyPrompt(log, assignmentId, index === logs.length - 1);
+      await classifyPrompt(log, taskDescription, index === logs.length - 1);
     }
   }
   return res.sendStatus(200);

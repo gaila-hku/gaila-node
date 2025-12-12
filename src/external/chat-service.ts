@@ -1,3 +1,6 @@
+import { isNumber } from 'lodash-es';
+
+import { ChatbotConfig } from 'types/assignment';
 import { GptClassificationResponse, GptLog, GptResponse } from 'types/gpt';
 
 const chatServiceUrl = process.env.CHAT_SERVICE_URL || 'http://localhost:5000';
@@ -21,17 +24,59 @@ export const fetchChatResponse = async (
   essay: string,
   rubrics: string,
   pastMessages: GptLog[],
+  taskDescription: string,
+  config: ChatbotConfig | null,
 ): Promise<GptResponse> => {
   const data = new URLSearchParams({
     ...defaultChatRequest,
     userQuestions: question,
     chatgptRoleDescription: rolePrompt,
+    taskDescription,
     essay,
     rubrics,
     past_messages: JSON.stringify(pastMessages),
+    ...(config
+      ? {
+          chatgptParameters: `${config.max_tokens};;;${config.choices};;;${config.temperature}`,
+        }
+      : {}),
   });
 
   const res = await fetch(chatServiceUrl + '/chatgpt', {
+    ...defaultChatFetchOptions,
+    body: data,
+  });
+
+  return res.json();
+};
+
+export const fetchIdeationAgentResponse = async (
+  question: string,
+  rolePrompt: string,
+  pastMessages: GptLog[],
+  rubrics: string,
+  taskDescription: string,
+  is_structured: boolean,
+  stage: number | undefined,
+  config: ChatbotConfig | null,
+): Promise<GptResponse> => {
+  const data = new URLSearchParams({
+    ...defaultChatRequest,
+    userQuestions: question,
+    chatgptRoleDescription: rolePrompt,
+    taskDescription,
+    rubrics,
+    past_messages: JSON.stringify(pastMessages),
+    is_structured: is_structured ? '1' : '0',
+    ...(isNumber(stage) ? { stage: stage.toString() } : {}),
+    ...(config
+      ? {
+          chatgptParameters: `${config.max_tokens};;;${config.choices};;;${config.temperature}`,
+        }
+      : {}),
+  });
+
+  const res = await fetch(chatServiceUrl + '/ideation-agent', {
     ...defaultChatFetchOptions,
     body: data,
   });
@@ -44,6 +89,7 @@ export const fetchDictionaryAgentResponse = async (
   rolePrompt: string,
   pastMessages: GptLog[],
   is_structured: boolean,
+  config: ChatbotConfig | null,
 ): Promise<GptResponse> => {
   const data = new URLSearchParams({
     ...defaultChatRequest,
@@ -51,6 +97,11 @@ export const fetchDictionaryAgentResponse = async (
     chatgptRoleDescription: rolePrompt,
     past_messages: JSON.stringify(pastMessages),
     is_structured: is_structured ? '1' : '0',
+    ...(config
+      ? {
+          chatgptParameters: `${config.max_tokens};;;${config.choices};;;${config.temperature}`,
+        }
+      : {}),
   });
 
   const res = await fetch(chatServiceUrl + '/dictionary-agent', {
@@ -67,6 +118,7 @@ export const fetchGrammarAgentResponse = async (
   essay: string,
   pastMessages: GptLog[],
   is_structured: boolean,
+  config: ChatbotConfig | null,
 ): Promise<GptResponse> => {
   const data = new URLSearchParams({
     ...defaultChatRequest,
@@ -75,6 +127,11 @@ export const fetchGrammarAgentResponse = async (
     essay,
     past_messages: JSON.stringify(pastMessages),
     is_structured: is_structured ? '1' : '0',
+    ...(config
+      ? {
+          chatgptParameters: `${config.max_tokens};;;${config.choices};;;${config.temperature}`,
+        }
+      : {}),
   });
 
   const res = await fetch(chatServiceUrl + '/grammar-agent', {
@@ -91,7 +148,43 @@ export const fetchAutogradeAgentResponse = async (
   essay: string,
   rubrics: string,
   pastMessages: GptLog[],
+  taskDescription: string,
   is_structured: boolean,
+  config: ChatbotConfig | null,
+): Promise<GptResponse> => {
+  const data = new URLSearchParams({
+    ...defaultChatRequest,
+    userQuestions: question,
+    chatgptRoleDescription: rolePrompt,
+    taskDescription,
+    essay,
+    rubrics,
+    past_messages: JSON.stringify(pastMessages),
+    is_structured: is_structured ? '1' : '0',
+    ...(config
+      ? {
+          chatgptParameters: `${config.max_tokens};;;${config.choices};;;${config.temperature}`,
+        }
+      : {}),
+  });
+
+  const res = await fetch(chatServiceUrl + '/autograde-agent', {
+    ...defaultChatFetchOptions,
+    body: data,
+  });
+
+  return res.json();
+};
+
+export const fetchRevisionAgentResponse = async (
+  question: string,
+  rolePrompt: string,
+  essay: string,
+  rubrics: string,
+  pastMessages: GptLog[],
+  taskDescription: string,
+  is_structured: boolean,
+  config: ChatbotConfig | null,
 ): Promise<GptResponse> => {
   const data = new URLSearchParams({
     ...defaultChatRequest,
@@ -100,10 +193,16 @@ export const fetchAutogradeAgentResponse = async (
     essay,
     rubrics,
     past_messages: JSON.stringify(pastMessages),
+    taskDescription,
     is_structured: is_structured ? '1' : '0',
+    ...(config
+      ? {
+          chatgptParameters: `${config.max_tokens};;;${config.choices};;;${config.temperature}`,
+        }
+      : {}),
   });
 
-  const res = await fetch(chatServiceUrl + '/autograde-agent', {
+  const res = await fetch(chatServiceUrl + '/revision-agent', {
     ...defaultChatFetchOptions,
     body: data,
   });

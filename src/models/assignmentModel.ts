@@ -485,7 +485,7 @@ export const fetchAssignmentDescriptionById = async (
   assignmentId: number,
 ): Promise<string | null> => {
   const [rows] = await pool.query(
-    'SELECT description, instructions FROM assignments WHERE id = ?',
+    'SELECT title, description, instructions FROM assignments WHERE id = ?',
     [assignmentId],
   );
   const result = rows as Partial<Assignment>[];
@@ -493,9 +493,12 @@ export const fetchAssignmentDescriptionById = async (
     return null;
   }
   if (result[0].instructions) {
-    return `${result[0].description} \n\nInstructions: ${result[0].description}`;
+    return `${result[0].title} \n\nDescription: ${result[0].description} \n\nInstructions: ${result[0].instructions}`;
   }
-  return result[0].description || null;
+  if (result[0].description) {
+    return `${result[0].title} \n\nDescription: ${result[0].description}`;
+  }
+  return result[0].title || null;
 };
 
 export const fetchStudentIdsByAssignmentId = async (

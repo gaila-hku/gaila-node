@@ -1,11 +1,11 @@
 import pool from 'config/db';
-import { AssignmentTool } from 'types/assignment';
+import { AssignmentTool, ChatbotConfig } from 'types/assignment';
 
-export const fetchRolePromptByAssignmentToolId = async (
+export const fetchToolSettingsByAssignmentToolId = async (
   assignmentToolId: number,
-): Promise<string | null> => {
+): Promise<{ rolePrompt: string; config: ChatbotConfig } | null> => {
   const [rows] = await pool.query(
-    `SELECT default_role_prompt, custom_role_prompt 
+    `SELECT default_role_prompt, custom_role_prompt, default_config, custom_config
     FROM assignment_tools tools
     JOIN chatbot_templates ON tools.chatbot_template_id = chatbot_templates.id
     WHERE tools.id = ?`,
@@ -14,9 +14,15 @@ export const fetchRolePromptByAssignmentToolId = async (
   const result = rows as {
     default_role_prompt: string;
     custom_role_prompt: string;
+    default_config: ChatbotConfig;
+    custom_config: ChatbotConfig;
   }[];
   return result.length > 0
-    ? result[0].custom_role_prompt || result[0].default_role_prompt
+    ? {
+        rolePrompt:
+          result[0].custom_role_prompt || result[0].default_role_prompt,
+        config: result[0].custom_config || result[0].default_config,
+      }
     : null;
 };
 
