@@ -325,3 +325,32 @@ export const fetchAgentUsageByAssignmentIdUserId = async (
     prompts: unstructuredResult.find(i => i.item_key === key)?.count ?? 0,
   }));
 };
+
+export const fetchGptUnstructuredLogsByUserId = async (
+  userId: number,
+  limit: number,
+  page: number,
+) => {
+  const [rows] = await pool.query(
+    `SELECT logs.*, at.tool_key
+    FROM gpt_logs logs
+    JOIN assignment_tools at ON logs.assignment_tool_id = at.id
+    WHERE user_id = ? AND is_structured = 0
+    ORDER BY user_ask_time DESC
+    LIMIT ? OFFSET ?`,
+    [userId, limit, (page - 1) * limit],
+  );
+  return rows as (GptLog & { tool_key: string })[];
+};
+
+export const fetchGptUnstructuredLogCountByUserId = async (
+  userId: number,
+): Promise<number> => {
+  const [rows] = await pool.query(
+    `SELECT COUNT(*) FROM gpt_logs 
+    WHERE user_id = ? AND is_structured = 0`,
+    [userId],
+  );
+  const result = rows as { 'COUNT(*)': number }[];
+  return result[0]['COUNT(*)'];
+};

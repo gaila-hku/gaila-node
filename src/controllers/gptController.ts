@@ -19,6 +19,8 @@ import {
   fetchToolSettingsByAssignmentToolId,
 } from 'models/assignmentToolModel';
 import {
+  fetchGptUnstructuredLogCountByUserId,
+  fetchGptUnstructuredLogsByUserId,
   fetchGptUnstructuredLogsByUserIdToolId,
   fetchLatestGptLogByUserIdToolId,
   fetchLatestStructuredGptLogsByUserIdToolId,
@@ -155,7 +157,9 @@ const classifyPrompt = async (
     !isArray(categories) ||
     categories.length !== pendingCateogryLogs.length ||
     !categories.every(
-      (s, index) => s.prompt === pendingCateogryLogs[index].user_question,
+      (s, index) =>
+        s.prompt ===
+        pendingCateogryLogs[index].user_question.replace(/\s\s+/g, ' '),
     ) ||
     !categories.every(
       s => isNumber(s.prompt_nature_code) && isNumber(s.writing_aspect_code),
@@ -337,6 +341,10 @@ export const askIdeationAgent = async (
         }),
       );
 
+      if (!isStructured) {
+        classifyPrompt(gptLog, taskDescription);
+      }
+
       return res.json(gptLog);
     } catch (e) {
       console.error(e);
@@ -367,6 +375,7 @@ export const askDictionaryAgent = async (
       stageId,
       isStructured,
       pastMessages,
+      taskDescription,
       config,
     } = await prepareGptRequest(req);
 
@@ -416,6 +425,10 @@ export const askDictionaryAgent = async (
         }),
       );
 
+      if (!isStructured) {
+        classifyPrompt(gptLog, taskDescription);
+      }
+
       return res.json(gptLog);
     } catch (e) {
       console.error(e);
@@ -446,6 +459,7 @@ export const askGrammarAgent = async (
       stageId,
       isStructured,
       pastMessages,
+      taskDescription,
       config,
     } = await prepareGptRequest(req, { questionUnstructuredOnly: true });
 
@@ -499,6 +513,10 @@ export const askGrammarAgent = async (
           answer: gptAnswer,
         }),
       );
+
+      if (!isStructured) {
+        classifyPrompt(gptLog, taskDescription);
+      }
 
       return res.json(gptLog);
     } catch (e) {
@@ -696,6 +714,10 @@ export const askRevisionAgent = async (
         }),
       );
 
+      if (!isStructured) {
+        classifyPrompt(gptLog, taskDescription);
+      }
+
       return res.json(gptLog);
     } catch (e) {
       console.error(e);
@@ -813,4 +835,53 @@ export const refreshPromptCategories = async (
     }
   }
   return res.sendStatus(200);
+};
+
+export const getGptUnstrcturedChatHistory = async (
+  req: AuthorizedRequest,
+  res: Response,
+) => {
+  if (!req.user?.id) {
+    return res
+      .status(401)
+      .json({ error_message: 'User not authenticated', error_code: 401 });
+  }
+
+  const userId = parseQueryNumber(req.query.user_id);
+  if (!isNumber(userId)) {
+    return res
+      .status(400)
+      .json({ error_message: 'Missing user id', error_code: 400 });
+  }
+
+  try {
+    const { limit, page } = parseListingQuery(req);
+
+    try {
+      const resObj = { page, limit, value: [] as GptLog[] };
+
+      resObj.value = await fetchGptUnstructuredLogsByUserId(
+        userId,
+        limit,
+        page,
+      );
+
+      if (parseQueryNumber(req.query.skipCount)) {
+        return res.json(resObj);
+      }
+
+      const count = await fetchGptUnstructuredLogCountByUserId(userId);
+      return res.json({ ...resObj, count });
+    } catch (err) {
+      return res.status(500).json({
+        error_message: 'Server error: ' + JSON.stringify(err),
+        error_code: 500,
+      });
+    }
+  } catch (e) {
+    return res.status(400).json({
+      error_message: 'Invalid query parameters: ' + (e as Error).message,
+      error_code: 400,
+    });
+  }
 };

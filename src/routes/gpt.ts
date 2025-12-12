@@ -6,6 +6,7 @@ import {
   askIdeationAgent,
   askRevisionAgent,
   getGptChatHistory,
+  getGptUnstrcturedChatHistory as getGptAllUnstrcturedChatHistory,
   getLatestGptStructuredOutput,
 } from 'controllers/gptController';
 import { Router } from 'express';
@@ -21,5 +22,6 @@ router.post('/ask-grammar', authorizeRole(), askGrammarAgent);
 router.post('/ask-autograde', authorizeRole(), askAutogradeAgent);
 router.post('/ask-revision', authorizeRole(), askRevisionAgent);
 router.get('/latest-structured', getLatestGptStructuredOutput);
+router.get('/listing-all-prompt', getGptAllUnstrcturedChatHistory);
 
 export default router;
