@@ -1,6 +1,7 @@
 import { Request } from 'express';
 
 import parseQueryNumber from 'utils/parseQueryNumber';
+import safeJsonParse from 'utils/safeJsonParse';
 
 const parseListingQuery = (req: Request) => {
   const parsedLimit = parseQueryNumber(req.query.limit);
@@ -9,7 +10,8 @@ const parseListingQuery = (req: Request) => {
   const limit = parsedLimit !== undefined ? parsedLimit : 10;
   const page = parsedPage !== undefined ? parsedPage : 1;
 
-  const filter = req.query.filter ? JSON.parse(req.query.filter as string) : {};
+  const filter = safeJsonParse(req.query.filter);
+
   const sort = req.query.sort;
   const sortOrder = req.query.sort_order;
 

@@ -35,6 +35,7 @@ import { GptLog } from 'types/gpt';
 import { AuthorizedRequest } from 'types/request';
 import parseListingQuery from 'utils/parseListingQuery';
 import parseQueryNumber from 'utils/parseQueryNumber';
+import safeJsonParse from 'utils/safeJsonParse';
 
 const prepareGptRequest = async (
   req: AuthorizedRequest,
@@ -785,7 +786,7 @@ export const getLatestGptStructuredOutput = async (
       .json({ error_message: 'User not authenticated', error_code: 401 });
   }
 
-  const toolIds = JSON.parse(req.query.assignment_tool_ids as string);
+  const toolIds = safeJsonParse(req.query.assignment_tool_ids as string);
   if (!isArray(toolIds)) {
     return res
       .status(400)

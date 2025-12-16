@@ -2,8 +2,12 @@ import { Router } from 'express';
 import { authorizeRole } from 'middleware/auth';
 
 import {
+  createUser,
+  deleteUser,
   getClassOptions,
   getStudentOptions,
+  getUserListing,
+  modifyUser,
 } from '../controllers/userController';
 
 const router = Router();
@@ -18,5 +22,9 @@ router.get(
   authorizeRole(['teacher', 'teaching_assistant', 'admin']),
   getStudentOptions,
 );
+router.get('/listing', authorizeRole(['admin']), getUserListing);
+router.post('/update', authorizeRole(['admin']), modifyUser);
+router.post('/create', authorizeRole(['admin']), createUser);
+router.post('/delete', authorizeRole(['admin']), deleteUser);
 
 export default router;

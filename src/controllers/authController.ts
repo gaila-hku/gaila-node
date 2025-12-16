@@ -4,10 +4,13 @@ import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import {
   fetchRefreshTokenByTokenHash,
-  storeNewUser,
   storeRefreshToken,
 } from 'models/authModel';
-import { fetchUserById, fetchUserByUsername } from 'models/userModel';
+import {
+  fetchUserById,
+  fetchUserByUsername,
+  updateUserLoginTime,
+} from 'models/userModel';
 
 const generateAccessToken = (userId: number, username: string) => {
   const tokenSecret = process.env.TOKEN_SECRET;
@@ -67,6 +70,8 @@ export const loginUser = async (req: Request, res: Response) => {
     Date.now() + refreshTokenExpiresIn,
   );
 
+  await updateUserLoginTime(user.id);
+
   return res.status(200).json({
     token,
     expiresIn: tokenExpiresIn,
@@ -116,40 +121,4 @@ export const refreshToken = async (req: Request, res: Response) => {
     role: user.role,
     lang: user.lang,
   });
-};
-
-export const createUser = async (req: Request, res: Response) => {
-  const { username, password, role } = req.body;
-
-  if (!username || !password || !role) {
-    return res
-      .status(400)
-      .json({ error_message: 'Missing username, password or role' });
-  }
-
-  // Check if user already exists
-  const existingUser = await fetchUserByUsername(username);
-  if (existingUser) {
-    return res.status(409).json({ error_message: 'Username already exists' });
-  }
-
-  // Hash password
-  const hashedPassword = bcrypt.hashSync(password, 10);
-
-  // Store user in DB
-  // Assuming you have a function `storeUser` in your userModel
-  try {
-    await storeNewUser(
-      username,
-      hashedPassword,
-      role,
-      req.body.first_name || null,
-      req.body.last_name || null,
-    );
-    return res.status(201).json({ message: 'User created successfully' });
-  } catch (error) {
-    return res
-      .status(500)
-      .json({ error_message: 'Failed to create user' + error });
-  }
 };
