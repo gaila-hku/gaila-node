@@ -51,3 +51,5 @@ export interface ClassDetail {
     type?: string;
   }[];
 }
+
+export type ClassManagementDetail = Omit<ClassDetail, 'assignments'>;

@@ -1,7 +1,14 @@
+import { ResultSetHeader } from 'mysql2';
+
 import pool from 'config/db';
-import { Assignment } from 'types/assignment';
-import { Class, ClassDetail, ClassOption } from 'types/class';
-import { User } from 'types/user';
+import {
+  Class,
+  ClassDetail,
+  ClassManagementDetail,
+  ClassOption,
+  ClassStudent,
+  ClassTeacher,
+} from 'types/class';
 
 export const fetchClassListingByTeacherId = async (
   id: number,
@@ -69,52 +76,38 @@ export const fetchClassById = async (
   id: number,
 ): Promise<ClassDetail | null> => {
   const [classRows] = await pool.query(
-    `SELECT * FROM classes c WHERE c.id = ?`,
+    `SELECT c.*,
+      (
+        SELECT JSON_ARRAYAGG(JSON_OBJECT('id', u.id, 'username', u.username, 'first_name', u.first_name, 'last_name', u.last_name))
+        FROM class_students cs
+        JOIN users u ON cs.student_id = u.id
+        WHERE cs.class_id = c.id
+      ) as students,
+      (
+        SELECT JSON_ARRAYAGG(JSON_OBJECT('id', u.id, 'username', u.username, 'first_name', u.first_name, 'last_name', u.last_name))
+        FROM class_teachers ct
+        JOIN users u ON ct.teacher_id = u.id
+        WHERE ct.class_id = c.id
+      ) as teachers,
+      (
+        SELECT a.id as id, a.title as title, a.description as description, a.start_date as start_date, a.due_date as due_date, a.type as type
+        FROM assignment_targets at
+        JOIN assignments a ON at.assignment_id = a.id
+        WHERE at.class_id = c.id
+      ) as assignments
+    FROM classes c
+    WHERE c.id = ?`,
     [id],
   );
-  const result = classRows as Class[];
-  const cls = result.length > 0 ? result[0] : null;
-  if (!cls) {
-    return null;
-  }
-
-  const res = {
-    ...cls,
-    teachers: [],
-    students: [],
-    assignments: [],
-  } as ClassDetail;
-
-  const [classTeacherRows] = await pool.query(
-    `SELECT u.id as id, u.username as username, u.first_name as first_name, u.last_name as last_name
-      FROM class_teachers ct
-      JOIN users u ON ct.teacher_id = u.id
-      WHERE class_id = ?`,
-    [id],
-  );
-  const classTeachers = classTeacherRows as User[];
-  res.teachers = classTeachers;
-
-  const [classStudentRows] = await pool.query(
-    `SELECT u.id as id, u.username as username, u.first_name as first_name, u.last_name as last_name
-      FROM class_students cs
-      JOIN users u ON cs.student_id = u.id
-      WHERE class_id = ?`,
-    [id],
-  );
-  const classStudents = classStudentRows as User[];
-  res.students = classStudents;
-
-  const [classAssignmentRows] = await pool.query(
-    `SELECT a.id as id, a.title as title, a.description as description, a.start_date as start_date, a.due_date as due_date, a.type as type
-      FROM assignment_targets at
-      JOIN assignments a ON at.assignment_id = a.id
-      WHERE class_id = ?`,
-    [id],
-  );
-  const classAssignments = classAssignmentRows as Assignment[];
-  res.assignments = classAssignments;
-  return res;
+  const result = classRows as ClassDetail[];
+  return result.length > 0
+    ? {
+        ...result[0],
+        students: result[0].students || [],
+        teachers: result[0].teachers || [],
+        assignments: result[0].assignments || [],
+      }
+    : null;
 };
 
 export const fetchClassesByIds = async (ids: number[]): Promise<Class[]> => {
@@ -122,4 +115,163 @@ export const fetchClassesByIds = async (ids: number[]): Promise<Class[]> => {
     ids,
   ]);
   return rows as Class[];
+};
+
+export const fetchClassListing = async (
+  limit: number,
+  page: number,
+  filter: string,
+): Promise<ClassManagementDetail[]> => {
+  const filterPattern = `%${filter || ''}%`;
+  const [classRows] = await pool.query(
+    `SELECT 
+        c.id,
+        c.name,
+        c.description,
+        (
+            SELECT JSON_ARRAYAGG(JSON_OBJECT('id', u.id, 'username', u.username, 'first_name', u.first_name, 'last_name', u.last_name))
+            FROM class_students cs
+            JOIN users u ON cs.student_id = u.id
+            WHERE cs.class_id = c.id
+        ) AS students,
+        (
+            SELECT JSON_ARRAYAGG(JSON_OBJECT('id', u.id, 'username', u.username, 'first_name', u.first_name, 'last_name', u.last_name))
+            FROM class_teachers ct
+            JOIN users u ON ct.teacher_id = u.id
+            WHERE ct.class_id = c.id
+        ) AS teachers
+    FROM classes c
+    WHERE (? = '' OR c.name LIKE ? OR c.description LIKE ?)
+    LIMIT ? OFFSET ?`,
+    [filter || '', filterPattern, filterPattern, limit, (page - 1) * limit],
+  );
+  const classResults = classRows as ClassManagementDetail[];
+  return classResults.map(item => ({
+    ...item,
+    students: item.students || [],
+    teachers: item.teachers || [],
+  }));
+};
+
+export const fetchClassesCount = async (filter: string): Promise<number> => {
+  const [rows] = await pool.query(
+    `SELECT COUNT(*)
+    FROM classes
+    ${filter ? `WHERE name LIKE '%${filter}%' OR description LIKE '%${filter}%'` : ''}`,
+  );
+  const result = rows as { 'COUNT(*)': number }[];
+  return result.length > 0 ? result[0]['COUNT(*)'] : 0;
+};
+
+export const createNewClass = async (
+  name: string,
+  description: string,
+): Promise<Class> => {
+  const [rows] = await pool.query(
+    'INSERT INTO classes (name, description) VALUES (?, ?)',
+    [name, description],
+  );
+  const insertId = (rows as ResultSetHeader).insertId;
+  return {
+    id: insertId,
+    name,
+    description,
+  } as Class;
+};
+
+export const updateExistingClass = async (
+  id: number,
+  name?: string,
+  description?: string,
+  teachers?: number[],
+  students?: number[],
+): Promise<ClassManagementDetail> => {
+  const updateParams = [];
+  const placeholders = [];
+  if (name) {
+    updateParams.push(name);
+    placeholders.push('name = ?');
+  }
+  if (description) {
+    updateParams.push(description);
+    placeholders.push('description = ?');
+  }
+  await pool.query(
+    `UPDATE classes SET ${placeholders.join(', ')} WHERE id = ?`,
+    [name, description, id],
+  );
+
+  let finalTeachers: ClassDetail['teachers'] = [];
+  if (teachers) {
+    const [enrolledTeachersRows] = await pool.query(
+      'SELECT * FROM class_teachers WHERE class_id = ?',
+      [id],
+    );
+    const enrolledTeachers = enrolledTeachersRows as ClassTeacher[];
+    const enrolledTeacherIds = enrolledTeachers.map(s => s.teacher_id);
+    const pendingEnrollTeacherIds = teachers.filter(
+      id => !enrolledTeacherIds.includes(id),
+    );
+    const pendingRemoveTeachers = enrolledTeachers.filter(
+      et => !teachers.includes(et.teacher_id),
+    );
+    for (const teacherId of pendingEnrollTeacherIds) {
+      await pool.query(
+        'INSERT INTO class_teachers (class_id, teacher_id) VALUES (?, ?)',
+        [id, teacherId],
+      );
+    }
+    for (const rt of pendingRemoveTeachers) {
+      await pool.query('DELETE FROM class_teachers WHERE id = ?', [rt.id]);
+    }
+    const [finalTeacherRows] = await pool.query(
+      `SELECT u.id as id, u.username as username, u.first_name as first_name, u.last_name as last_name
+      FROM class_teachers ct
+      JOIN users u ON ct.teacher_id = u.id
+      WHERE class_id = ?`,
+      [id],
+    );
+    finalTeachers = finalTeacherRows as ClassDetail['teachers'];
+  }
+
+  let finalStudents: ClassDetail['students'] = [];
+  if (students) {
+    const [enrolledStudentRows] = await pool.query(
+      'SELECT * FROM class_students WHERE class_id = ?',
+      [id],
+    );
+    const enrolledStudents = enrolledStudentRows as ClassStudent[];
+    const enrolledStudentIds = enrolledStudents.map(s => s.student_id);
+    const pendingEnrollStudentIds = students.filter(
+      id => !enrolledStudentIds.includes(id),
+    );
+    const pendingRemoveStudents = enrolledStudents.filter(
+      es => !students.includes(es.student_id),
+    );
+    for (const studentId of pendingEnrollStudentIds) {
+      await pool.query(
+        'INSERT INTO class_students (class_id, student_id) VALUES (?, ?)',
+        [id, studentId],
+      );
+    }
+    for (const rs of pendingRemoveStudents) {
+      await pool.query('DELETE FROM class_students WHERE id = ?', [rs.id]);
+    }
+    const [finalStudentRows] = await pool.query(
+      `SELECT u.id as id, u.username as username, u.first_name as first_name, u.last_name as last_name
+      FROM class_students cs
+      JOIN users u ON cs.student_id = u.id
+      WHERE class_id = ?`,
+      [id],
+    );
+    finalStudents = finalStudentRows as ClassDetail['students'];
+  }
+
+  return {
+    id,
+    name,
+    description,
+    teachers: finalTeachers,
+    students: finalStudents,
+  } as ClassManagementDetail;
 };
