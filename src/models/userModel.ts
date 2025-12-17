@@ -126,10 +126,7 @@ export const updateExistingUser = async (
     id,
   ]);
 
-  const [userRows] = await pool.query(
-    'SELECT * FROM assignments WHERE id = ?',
-    [id],
-  );
+  const [userRows] = await pool.query('SELECT * FROM users WHERE id = ?', [id]);
   const result = userRows as User[];
   return result.length > 0 ? result[0] : null;
 };
@@ -143,8 +140,8 @@ export const createNewUser = async (
   lang?: string,
 ): Promise<User> => {
   const hashedPassword = bcrypt.hashSync(password, 10);
-  const createParams = [username, hashedPassword, role];
-  const placeholders = ['username', 'password', 'role'];
+  const createParams = [username, hashedPassword, role, Date.now()];
+  const placeholders = ['username', 'password', 'role', 'time_created'];
   if (first_name) {
     createParams.push(first_name);
     placeholders.push('first_name');

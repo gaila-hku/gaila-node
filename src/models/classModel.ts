@@ -126,6 +126,7 @@ export const fetchClassListing = async (
   const [classRows] = await pool.query(
     `SELECT 
         c.id,
+        c.class_key,
         c.name,
         c.description,
         (
@@ -163,18 +164,28 @@ export const fetchClassesCount = async (filter: string): Promise<number> => {
   return result.length > 0 ? result[0]['COUNT(*)'] : 0;
 };
 
+export const fetchClassByKey = async (key: string): Promise<Class | null> => {
+  const [rows] = await pool.query('SELECT * FROM classes WHERE class_key = ?', [
+    key,
+  ]);
+  const result = rows as Class[];
+  return result.length > 0 ? result[0] : null;
+};
+
 export const createNewClass = async (
   name: string,
+  class_key: string,
   description: string,
 ): Promise<Class> => {
   const [rows] = await pool.query(
-    'INSERT INTO classes (name, description) VALUES (?, ?)',
-    [name, description],
+    'INSERT INTO classes (name, class_key, description) VALUES (?, ?, ?)',
+    [name, class_key, description],
   );
   const insertId = (rows as ResultSetHeader).insertId;
   return {
     id: insertId,
     name,
+    class_key,
     description,
   } as Class;
 };
@@ -182,6 +193,7 @@ export const createNewClass = async (
 export const updateExistingClass = async (
   id: number,
   name?: string,
+  class_key?: string,
   description?: string,
   teachers?: number[],
   students?: number[],
@@ -192,13 +204,18 @@ export const updateExistingClass = async (
     updateParams.push(name);
     placeholders.push('name = ?');
   }
+  if (class_key) {
+    updateParams.push(class_key);
+    placeholders.push('class_key = ?');
+  }
   if (description) {
     updateParams.push(description);
     placeholders.push('description = ?');
   }
+  updateParams.push(id);
   await pool.query(
     `UPDATE classes SET ${placeholders.join(', ')} WHERE id = ?`,
-    [name, description, id],
+    updateParams,
   );
 
   let finalTeachers: ClassDetail['teachers'] = [];
@@ -274,4 +291,28 @@ export const updateExistingClass = async (
     teachers: finalTeachers,
     students: finalStudents,
   } as ClassManagementDetail;
+};
+
+export const addStudentToClass = async (userId: number, classKey: string) => {
+  const classItem = await fetchClassByKey(classKey);
+  if (!classItem) {
+    throw new Error('Class not found');
+  }
+  const classId = classItem.id;
+  await pool.query(
+    'INSERT INTO class_students (class_id, student_id) VALUES (?, ?)',
+    [classId, userId],
+  );
+};
+
+export const addTeacherToClass = async (userId: number, classKey: string) => {
+  const classItem = await fetchClassByKey(classKey);
+  if (!classItem) {
+    throw new Error('Class not found');
+  }
+  const classId = classItem.id;
+  await pool.query(
+    'INSERT INTO class_teachers (class_id, teacher_id) VALUES (?, ?)',
+    [classId, userId],
+  );
 };

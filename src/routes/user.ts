@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { authorizeRole } from 'middleware/auth';
 
+import upload from 'config/multer-upload';
+
 import {
   createUser,
   deleteUser,
@@ -8,6 +10,7 @@ import {
   getStudentOptions,
   getUserListing,
   modifyUser,
+  uploadUser,
 } from '../controllers/userController';
 
 const router = Router();
@@ -26,5 +29,11 @@ router.get('/listing', authorizeRole(['admin']), getUserListing);
 router.post('/update', authorizeRole(['admin']), modifyUser);
 router.post('/create', authorizeRole(['admin']), createUser);
 router.post('/delete', authorizeRole(['admin']), deleteUser);
+router.post(
+  '/upload',
+  authorizeRole(['admin']),
+  upload.single('file'),
+  uploadUser,
+);
 
 export default router;

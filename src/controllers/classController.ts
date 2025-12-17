@@ -2,6 +2,7 @@ import { Response } from 'express';
 import {
   createNewClass,
   fetchClassById,
+  fetchClassByKey,
   fetchClassesCount,
   fetchClassesCountByStudentId,
   fetchClassesCountByTeacherId,
@@ -135,9 +136,22 @@ export const createClass = async (req: AuthenticatedRequest, res: Response) => {
       .status(401)
       .json({ error_message: 'User not authenticated', error_code: 401 });
   }
+  const classKey = req.body.class_key;
+  if (!req.body.name || !classKey) {
+    return res
+      .status(400)
+      .json({ error_message: 'Missing name or class key', error_code: 400 });
+  }
+  const conflictClass = await fetchClassByKey(classKey);
+  if (conflictClass && conflictClass.id !== req.body.id) {
+    return res
+      .status(404)
+      .json({ error_message: 'Class key already exists', error_code: 404 });
+  }
   try {
     const createdClass = await createNewClass(
       req.body.name,
+      classKey,
       req.body.description,
     );
     return res.json(createdClass);
@@ -155,16 +169,33 @@ export const updateClass = async (req: AuthenticatedRequest, res: Response) => {
       .status(401)
       .json({ error_message: 'User not authenticated', error_code: 401 });
   }
+
   const classId = Number(req.body.id);
   if (isNaN(classId)) {
     return res
       .status(400)
       .json({ error_message: 'Invalid class ID', error_code: 400 });
   }
+
+  const classKey = req.body.class_key;
+  if (!classKey) {
+    return res
+      .status(400)
+      .json({ error_message: 'Missing class key', error_code: 400 });
+  }
+
+  const conflictClass = await fetchClassByKey(classKey);
+  if (conflictClass && conflictClass.id !== req.body.id) {
+    return res
+      .status(404)
+      .json({ error_message: 'Class key already exists', error_code: 404 });
+  }
+
   try {
     const updatedClass = await updateExistingClass(
       classId,
       req.body.name,
+      req.body.class_key,
       req.body.description,
       req.body.teachers,
       req.body.students,

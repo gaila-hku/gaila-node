@@ -1,6 +1,10 @@
 import { Response } from 'express';
 import { isString } from 'lodash-es';
-import { fetchClassOptionsByTeacherId } from 'models/classModel';
+import {
+  addStudentToClass,
+  addTeacherToClass,
+  fetchClassOptionsByTeacherId,
+} from 'models/classModel';
 import {
   createNewUser,
   deleteExistingUser,
@@ -12,7 +16,8 @@ import {
 } from 'models/userModel';
 
 import { AuthorizedRequest } from 'types/request';
-import { UserListingItem } from 'types/user';
+import { User, UserListingItem } from 'types/user';
+import parseCSVFile from 'utils/parseCSVFile';
 import parseListingQuery from 'utils/parseListingQuery';
 import parseQueryNumber from 'utils/parseQueryNumber';
 
@@ -173,4 +178,125 @@ export const deleteUser = async (req: AuthorizedRequest, res: Response) => {
   }
   await deleteExistingUser(userId);
   return res.status(200).json({ message: 'User deleted successfully' });
+};
+
+export const uploadUser = async (req: AuthorizedRequest, res: Response) => {
+  if (!req.user?.id) {
+    return res
+      .status(401)
+      .json({ error_message: 'User not authenticated', error_code: 401 });
+  }
+  if (!req.file) {
+    return res.status(400).json({ message: 'No file uploaded.' });
+  }
+
+  try {
+    const results = [];
+    const filePath = req.file.path;
+    const csvRows = await parseCSVFile(filePath);
+
+    for (const row of csvRows) {
+      const missingFields = [];
+      if (!row.username) missingFields.push('username');
+      if (!row.password) missingFields.push('password');
+      if (!row.role) missingFields.push('role');
+      if (missingFields.length > 0) {
+        results.push({
+          data: row,
+          error: true,
+          message: 'Missing fields: ' + missingFields.join(', '),
+        });
+        continue;
+      }
+
+      let newUser: User | null = null;
+      const existingUser = await fetchUserByUsername(row.username);
+      if (existingUser) {
+        try {
+          newUser = await updateExistingUser(
+            existingUser.id,
+            row.username,
+            row.password,
+            row.role,
+            row.first_name,
+            row.last_name,
+            row.lang,
+          );
+        } catch (e) {
+          results.push({
+            data: row,
+            error: true,
+            message: 'Failed to update user: ' + e,
+          });
+          continue;
+        }
+      } else {
+        try {
+          newUser = await createNewUser(
+            row.username,
+            row.password,
+            row.role,
+            row.first_name,
+            row.last_name,
+            row.lang,
+          );
+        } catch (e) {
+          results.push({
+            data: row,
+            error: true,
+            message: 'Failed to create user: ' + e,
+          });
+          continue;
+        }
+      }
+
+      if (!newUser) {
+        results.push({
+          data: row,
+          error: true,
+          message: 'Unknown error. Please try again or contact support.',
+        });
+        continue;
+      }
+      const newUserResult = {
+        ...newUser,
+        password: row.password,
+        class: row.class,
+      };
+      if (!row.class) {
+        results.push({
+          data: newUserResult,
+          error: false,
+          message: 'User created successfully',
+        });
+        continue;
+      }
+
+      try {
+        if (row.role === 'student') {
+          await addStudentToClass(newUser.id, row.class);
+        } else {
+          await addTeacherToClass(newUser.id, row.class);
+        }
+        results.push({
+          data: newUserResult,
+          error: false,
+          message: 'User added to class successfully',
+        });
+      } catch (e) {
+        results.push({
+          data: newUserResult,
+          error: true,
+          message: 'Failed to add user to class: ' + e,
+        });
+      }
+    }
+
+    return res.status(200).json(results);
+  } catch (err) {
+    return res.status(500).json({
+      error_message: 'Server error: ' + JSON.stringify(err),
+      error_code: 500,
+    });
+  }
 };

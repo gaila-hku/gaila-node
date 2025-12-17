@@ -1,6 +1,7 @@
 export interface Class {
   id: number;
   name: string;
+  class_key: string;
   description?: string;
   start_at?: number;
   end_at?: number;
@@ -27,6 +28,7 @@ export interface ClassStudent {
 export interface ClassDetail {
   id: number;
   name: string;
+  class_key: string;
   description?: string;
   start_at?: number;
   end_at?: number;
