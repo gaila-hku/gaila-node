@@ -90,7 +90,7 @@ export const fetchClassById = async (
         WHERE ct.class_id = c.id
       ) as teachers,
       (
-        SELECT a.id as id, a.title as title, a.description as description, a.start_date as start_date, a.due_date as due_date, a.type as type
+        SELECT JSON_ARRAYAGG(JSON_OBJECT('id', a.id, 'title', a.title, 'description', a.description, 'start_date', a.start_date, 'due_date', a.due_date, 'type', a.type))
         FROM assignment_targets at
         JOIN assignments a ON at.assignment_id = a.id
         WHERE at.class_id = c.id
