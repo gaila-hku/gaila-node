@@ -1,5 +1,5 @@
 import pool from 'config/db';
-import { AssignmentTool, ChatbotConfig } from 'types/assignment';
+import { AssignmentTool, ChatbotConfig } from 'types/db/assignment';
 
 export const fetchToolSettingsByAssignmentToolId = async (
   assignmentToolId: number,

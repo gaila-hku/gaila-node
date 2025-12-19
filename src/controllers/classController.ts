@@ -12,7 +12,7 @@ import {
   updateExistingClass,
 } from 'models/classModel';
 
-import { Class } from 'types/class';
+import { Class } from 'types/db/class';
 import { AuthenticatedRequest } from 'types/request';
 import parseListingQuery from 'utils/parseListingQuery';
 import parseQueryNumber from 'utils/parseQueryNumber';

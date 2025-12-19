@@ -1,7 +1,8 @@
 import { ResultSetHeader } from 'mysql2';
 
 import pool from 'config/db';
-import { TimelineData, TraceData } from 'types/trace-data';
+import { TraceData } from 'types/db/trace-data';
+import { TimelineData } from 'types/trace-data';
 
 export const saveNewTraceData = async (
   userId: number,

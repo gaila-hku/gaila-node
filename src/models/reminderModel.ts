@@ -1,5 +1,5 @@
 import pool from 'config/db';
-import { StudentReminder } from 'types/reminder';
+import { StudentReminder } from 'types/db/reminder';
 
 export const fetchRemindersByStudentId = async (
   studentId: number,

@@ -1,9 +1,6 @@
 import pool from 'config/db';
-import {
-  AssignmentStage,
-  AssignmentStageWithTools,
-  AssignmentTool,
-} from 'types/assignment';
+import { AssignmentStageWithTools } from 'types/assignment';
+import { AssignmentStage, AssignmentTool } from 'types/db/assignment';
 
 export const fetchAssignmentStagesWithToolsByAssignmentId = async (
   assignmentId: number,

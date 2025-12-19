@@ -1,7 +1,8 @@
 import { isNumber } from 'lodash-es';
 
-import { ChatbotConfig } from 'types/assignment';
-import { GptClassificationResponse, GptLog, GptResponse } from 'types/gpt';
+import { ChatbotConfig } from 'types/db/assignment';
+import { GptLog } from 'types/db/gpt';
+import { GptClassificationResponse, GptResponse } from 'types/external/gpt';
 
 const chatServiceUrl = process.env.CHAT_SERVICE_URL || 'http://localhost:5000';
 

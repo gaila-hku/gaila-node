@@ -4,13 +4,13 @@ import { ResultSetHeader } from 'mysql2';
 
 import pool from 'config/db';
 import {
-  Assignment,
   AssignmentEnrollment,
   AssignmentOption,
   AssignmentStageCreatePayload,
   AssignmentTeacherListingItem,
 } from 'types/assignment';
-import { ClassTeacher } from 'types/class';
+import { Assignment } from 'types/db/assignment';
+import { ClassTeacher } from 'types/db/class';
 
 type AssignmentFilterType = {
   search?: string;

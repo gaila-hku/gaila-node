@@ -2,8 +2,8 @@ import { NextFunction, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { fetchUserById } from 'models/userModel';
 
+import { User } from 'types/db/user';
 import { AuthenticatedRequest, UserPayload } from 'types/request';
-import { User } from 'types/user';
 
 export function authenticateToken(
   req: AuthenticatedRequest,

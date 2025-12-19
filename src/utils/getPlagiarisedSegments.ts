@@ -1,7 +1,7 @@
 import { isNull } from 'lodash-es';
 
-import { GptLog } from 'types/gpt';
-import { TraceData } from 'types/trace-data';
+import { GptLog } from 'types/db/gpt';
+import { TraceData } from 'types/db/trace-data';
 
 type Substring = {
   length: number;

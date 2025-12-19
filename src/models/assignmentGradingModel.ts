@@ -1,7 +1,7 @@
 import { ResultSetHeader } from 'mysql2';
 
 import pool from 'config/db';
-import { AssignmentGrade } from 'types/assignment';
+import { AssignmentGrade } from 'types/db/assignment';
 
 export const fetchLatestGradesBySubmissionIds = async (
   submissionIds: number[],

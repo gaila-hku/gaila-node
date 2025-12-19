@@ -26,12 +26,12 @@ import {
 } from 'models/traceDataModel';
 
 import {
-  AssignmentEssayContent,
   AssignmentRecentSubmissionListingItemResponse,
   AssignmentSubmissionListingItem,
   AssignmentSubmissionListingItemResponse,
 } from 'types/assignment';
-import { REMINDER_TYPES, StudentReminder } from 'types/reminder';
+import { AssignmentEssayContent } from 'types/db/assignment';
+import { REMINDER_TYPES, StudentReminder } from 'types/db/reminder';
 import { AuthorizedRequest } from 'types/request';
 import getPlagiarisedSegments from 'utils/getPlagiarisedSegments';
 import parseListingQuery from 'utils/parseListingQuery';

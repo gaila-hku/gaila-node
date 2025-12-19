@@ -1,7 +1,7 @@
 import { Request } from 'express';
 import { JwtPayload } from 'jsonwebtoken';
 
-import { User } from 'types/user';
+import { User } from 'types/db/user';
 
 export interface UserPayload extends JwtPayload {
   id: number;

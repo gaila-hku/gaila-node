@@ -30,8 +30,8 @@ import {
 } from 'models/gptLogModel';
 import { saveNewTraceData } from 'models/traceDataModel';
 
-import { AssignmentEssayContent } from 'types/assignment';
-import { GptLog } from 'types/gpt';
+import { AssignmentEssayContent } from 'types/db/assignment';
+import { GptLog } from 'types/db/gpt';
 import { AuthorizedRequest } from 'types/request';
 import parseListingQuery from 'utils/parseListingQuery';
 import parseQueryNumber from 'utils/parseQueryNumber';

@@ -1,14 +1,8 @@
 import { ResultSetHeader } from 'mysql2';
 
 import pool from 'config/db';
-import {
-  Class,
-  ClassDetail,
-  ClassManagementDetail,
-  ClassOption,
-  ClassStudent,
-  ClassTeacher,
-} from 'types/class';
+import { ClassDetail, ClassManagementDetail, ClassOption } from 'types/class';
+import { Class, ClassStudent, ClassTeacher } from 'types/db/class';
 
 export const fetchClassListingByTeacherId = async (
   id: number,

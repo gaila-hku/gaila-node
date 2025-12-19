@@ -26,15 +26,13 @@ import {
 import { fetchPasteTextLogsByUserIdAssignmentId } from 'models/traceDataModel';
 import { fetchUsersByIds } from 'models/userModel';
 
-import {
-  Assignment,
-  AssignmentEssayContent,
-  AssignmentOption,
-  AssignmentView,
-} from 'types/assignment';
-import { Class, ClassOption } from 'types/class';
+import { AssignmentOption, AssignmentView } from 'types/assignment';
+import { ClassOption } from 'types/class';
+import { Assignment, AssignmentEssayContent } from 'types/db/assignment';
+import { Class } from 'types/db/class';
+import { User } from 'types/db/user';
 import { AuthorizedRequest } from 'types/request';
-import { User, UserOption } from 'types/user';
+import { UserOption } from 'types/user';
 import getPlagiarisedSegments from 'utils/getPlagiarisedSegments';
 import parseListingQuery from 'utils/parseListingQuery';
 

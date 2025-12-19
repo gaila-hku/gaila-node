@@ -3,10 +3,10 @@ import { ResultSetHeader } from 'mysql2';
 import pool from 'config/db';
 import {
   AssignmentRecentSubmissionListingItem,
-  AssignmentSubmission,
   AssignmentSubmissionDetail,
   AssignmentSubmissionListingItem,
 } from 'types/assignment';
+import { AssignmentSubmission } from 'types/db/assignment';
 
 export const fetchLatestSubmissionsByAssignmentIdStudentId = async (
   assignmentId: number,

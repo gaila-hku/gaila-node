@@ -2,7 +2,8 @@ import bcrypt from 'bcryptjs';
 import { ResultSetHeader } from 'mysql2';
 
 import pool from 'config/db';
-import { ClassUser, User, UserListingItem, UserOption } from 'types/user';
+import { User } from 'types/db/user';
+import { ClassUser, UserListingItem, UserOption } from 'types/user';
 
 export const fetchUserByUsername = async (
   username: string,

@@ -15,8 +15,9 @@ import {
   updateExistingUser,
 } from 'models/userModel';
 
+import { User } from 'types/db/user';
 import { AuthorizedRequest } from 'types/request';
-import { User, UserListingItem } from 'types/user';
+import { UserListingItem } from 'types/user';
 import parseCSVFile from 'utils/parseCSVFile';
 import parseListingQuery from 'utils/parseListingQuery';
 import parseQueryNumber from 'utils/parseQueryNumber';

@@ -2,12 +2,12 @@ import { fetchStudentIdsByAssignmentId } from 'models/assignmentModel';
 import { ResultSetHeader } from 'mysql2';
 
 import pool from 'config/db';
+import { GptLog } from 'types/db/gpt';
 import {
   AgentUsageData,
   GptAnalytics,
   GptAnalyticsCountDatabaseItem,
   GptAnalyticsCountDatabaseToolItem,
-  GptLog,
 } from 'types/gpt';
 import {
   convertPromptAspectArray,

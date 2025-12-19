@@ -1,4 +1,4 @@
-import { RefreshToken } from 'types/auth';
+import { RefreshToken } from 'types/db/auth';
 
 import pool from '../config/db';
 
