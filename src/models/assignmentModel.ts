@@ -18,6 +18,28 @@ type AssignmentFilterType = {
   status?: string;
 };
 
+const getOrderClause = (
+  sort: string | undefined,
+  sortOrder: 'asc' | 'desc' | undefined,
+): string => {
+  if (!sort) return '';
+  const direction = sortOrder === 'desc' ? 'DESC' : 'ASC';
+  const allowedColumns = [
+    'id',
+    'title',
+    'start_date',
+    'due_date',
+    'type',
+    'student_count',
+    'submitted_count',
+    'graded_count',
+    'avg_score',
+    'status',
+  ];
+  if (!allowedColumns.includes(sort)) return '';
+  return `ORDER BY ${sort} ${direction}`;
+};
+
 export const fetchAssignmentsByTeacherId = async (
   teacherId: number,
   limit: number,
@@ -57,15 +79,23 @@ export const fetchAssignmentsByTeacherId = async (
         JOIN assignment_stages ast ON a.id = ast.assignment_id
         LEFT JOIN assignment_submissions fs ON ast.id = fs.stage_id AND fs.student_id = student_ids.student_id AND fs.is_final = 1
         LEFT JOIN assignment_grades g ON fs.id = g.submission_id
-        WHERE (at.teacher_id = ? OR a.created_by = ?) AND title like '%${filter.search}%' ${filter.type ? `AND type = '${filter.type}'` : ''}
+        WHERE (at.teacher_id = ? OR a.created_by = ?) AND title LIKE ? ${filter.type ? 'AND type = ?' : ''}
         GROUP BY a.id, student_ids.student_id
       ) counts
       GROUP BY counts.id
     ) t
-      ${filter.status ? `WHERE status = '${filter.status}'` : ''}
-      ${sort ? `ORDER BY ${sort} ${sortOrder || 'asc'}` : ''}
+      ${filter.status ? 'WHERE status = ?' : ''}
+      ${getOrderClause(sort, sortOrder)}
       LIMIT ? OFFSET ?`,
-    [teacherId, teacherId, limit, (page - 1) * limit],
+    [
+      teacherId,
+      teacherId,
+      `%${filter.search}%`,
+      ...(filter.type ? [filter.type] : []),
+      ...(filter.status ? [filter.status] : []),
+      limit,
+      (page - 1) * limit,
+    ],
   );
   return assignmentRows as AssignmentTeacherListingItem[];
 };
@@ -85,11 +115,17 @@ export const fetchAssignmentsCountByTeacherId = async (
         END AS status
       FROM assignments a
       LEFT JOIN assignment_teachers at ON a.id = at.assignment_id
-      WHERE (at.teacher_id = ? OR a.created_by = ?) AND title like '%${filter.search}%' ${filter.type ? `AND type = '${filter.type}'` : ''}
+      WHERE (at.teacher_id = ? OR a.created_by = ?) AND title LIKE ? ${filter.type ? 'AND type = ?' : ''}
     ) t
-      ${filter.status ? `WHERE status = '${filter.status}'` : ''}
+      ${filter.status ? 'WHERE status = ?' : ''}
     `,
-    [id, id],
+    [
+      id,
+      id,
+      `%${filter.search}%`,
+      ...(filter.type ? [filter.type] : []),
+      ...(filter.status ? [filter.status] : []),
+    ],
   );
   const result = rows as { 'COUNT(*)': number }[];
   return result.length > 0 ? result[0]['COUNT(*)'] : 0;
@@ -122,14 +158,23 @@ export const fetchAssignmentsByStudentId = async (
         LEFT JOIN assignment_grades g ON fs.id = g.submission_id
       WHERE 
         (at.student_id = ? OR at.class_id in (SELECT class_id FROM class_students WHERE student_id = ?)) 
-        AND title like '%${filter.search}%' ${filter.type ? `AND type = '${filter.type}'` : ''}
+        AND title LIKE ? ${filter.type ? 'AND type = ?' : ''}
       GROUP BY a.id
     ) t
-      ${filter.status ? `WHERE status = '${filter.status}'` : ''}
-      ${sort ? `ORDER BY ${sort} ${sortOrder || 'asc'}` : ''}
+      ${filter.status ? 'WHERE status = ?' : ''}
+      ${getOrderClause(sort, sortOrder)}
       LIMIT ? OFFSET ?
     `,
-    [studentId, studentId, studentId, limit, (page - 1) * limit],
+    [
+      studentId,
+      studentId,
+      studentId,
+      `%${filter.search}%`,
+      ...(filter.type ? [filter.type] : []),
+      ...(filter.status ? [filter.status] : []),
+      limit,
+      (page - 1) * limit,
+    ],
   );
   return assignmentRows as Assignment[];
 };
@@ -157,12 +202,19 @@ export const fetchAssignmentsCountByStudentId = async (
         LEFT JOIN assignment_grades g ON fs.id = g.submission_id
       WHERE 
         (at.student_id = ? OR at.class_id in (SELECT class_id FROM class_students WHERE student_id = ?)) 
-        AND title like '%${filter.search}%' ${filter.type ? `AND type = '${filter.type}'` : ''}
+        AND title LIKE ? ${filter.type ? 'AND type = ?' : ''}
       GROUP BY a.id
     ) t
-      ${filter.status ? `WHERE status = '${filter.status}'` : ''}
+      ${filter.status ? 'WHERE status = ?' : ''}
     `,
-    [studentId, studentId, studentId],
+    [
+      studentId,
+      studentId,
+      studentId,
+      `%${filter.search}%`,
+      ...(filter.type ? [filter.type] : []),
+      ...(filter.status ? [filter.status] : []),
+    ],
   );
   const result = rows as { 'COUNT(*)': number }[];
   return result.length > 0 ? result[0]['COUNT(*)'] : 0;

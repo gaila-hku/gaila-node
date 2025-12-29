@@ -5,6 +5,27 @@ import pool from 'config/db';
 import { User } from 'types/db/user';
 import { ClassUser, UserListingItem, UserOption } from 'types/user';
 
+const getOrderClause = (
+  sort: string | undefined,
+  sortOrder: 'asc' | 'desc' | undefined,
+): string => {
+  if (!sort) return '';
+  const direction = sortOrder === 'desc' ? 'DESC' : 'ASC';
+  const allowedColumns = [
+    'id',
+    'username',
+    'role',
+    'last_login',
+    'time_created',
+    'time_modified',
+    'first_name',
+    'last_name',
+    'lang',
+  ];
+  if (!allowedColumns.includes(sort)) return '';
+  return `ORDER BY ${sort} ${direction}`;
+};
+
 export const fetchUserByUsername = async (
   username: string,
 ): Promise<User | null> => {
@@ -63,22 +84,30 @@ export const fetchUsers = async (
   sort: string | undefined,
   sortOrder: 'asc' | 'desc' | undefined,
 ): Promise<UserListingItem[]> => {
-  const [rows] = await pool.query(`
+  const likeFilter = `%${filter}%`;
+  const [rows] = await pool.query(
+    `
     SELECT id, username, role, last_login, time_created, time_modified, first_name, last_name, lang
     FROM users
-    WHERE (username LIKE '%${filter}%' OR first_name LIKE '%${filter}%' OR last_name LIKE '%${filter}%') AND (deleted IS NULL or deleted = 0)
-    ${sort ? `ORDER BY ${sort} ${sortOrder || 'asc'}` : ''}
-    LIMIT ${limit} OFFSET ${limit * (page - 1)}
-    `);
-  return rows as User[];
+    WHERE (username LIKE ? OR first_name LIKE ? OR last_name LIKE ?) AND (deleted IS NULL or deleted = 0)
+    ${getOrderClause(sort, sortOrder)}
+    LIMIT ? OFFSET ?
+    `,
+    [likeFilter, likeFilter, likeFilter, limit, limit * (page - 1)],
+  );
+  return rows as UserListingItem[];
 };
 
 export const fetchUserCount = async (filter: string): Promise<number> => {
-  const [rows] = await pool.query(`
+  const likeFilter = `%${filter}%`;
+  const [rows] = await pool.query(
+    `
     SELECT COUNT(*)
     FROM users
-    WHERE (username LIKE '%${filter}%' OR first_name LIKE '%${filter}%' OR last_name LIKE '%${filter}%') AND (deleted IS NULL or deleted = 0)
-    `);
+    WHERE (username LIKE ? OR first_name LIKE ? OR last_name LIKE ?) AND (deleted IS NULL or deleted = 0)
+    `,
+    [likeFilter, likeFilter, likeFilter],
+  );
   const results = rows as { 'COUNT(*)': number }[];
   return results.length > 0 ? results[0]['COUNT(*)'] : 0;
 };

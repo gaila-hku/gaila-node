@@ -149,10 +149,17 @@ export const fetchClassListing = async (
 };
 
 export const fetchClassesCount = async (filter: string): Promise<number> => {
+  if (!filter) {
+    const [rows] = await pool.query(`SELECT COUNT(*) FROM classes`);
+    const result = rows as { 'COUNT(*)': number }[];
+    return result.length > 0 ? result[0]['COUNT(*)'] : 0;
+  }
+  const likeFilter = `%${filter}%`;
   const [rows] = await pool.query(
     `SELECT COUNT(*)
     FROM classes
-    ${filter ? `WHERE name LIKE '%${filter}%' OR description LIKE '%${filter}%'` : ''}`,
+    WHERE name LIKE ? OR description LIKE ?`,
+    [likeFilter, likeFilter],
   );
   const result = rows as { 'COUNT(*)': number }[];
   return result.length > 0 ? result[0]['COUNT(*)'] : 0;

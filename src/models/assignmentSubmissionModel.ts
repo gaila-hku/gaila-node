@@ -92,6 +92,14 @@ export const fetchLatestSubmissionsByTeacherId = async (
   page: number,
   filter: string,
 ): Promise<AssignmentRecentSubmissionListingItem[]> => {
+  const params: (string | number)[] = [teacherId];
+  let whereClause = '';
+  if (filter) {
+    const likeFilter = `%${filter}%`;
+    whereClause = 'WHERE full_name LIKE ? OR username LIKE ? OR title LIKE ?';
+    params.push(likeFilter, likeFilter, likeFilter);
+  }
+  params.push(limit, (page - 1) * limit);
   const [rows] = await pool.query(
     `
     SELECT t.student_id
@@ -112,10 +120,10 @@ export const fetchLatestSubmissionsByTeacherId = async (
       INNER JOIN users ON s.student_id = users.id
       ORDER BY s.submitted_at DESC
     ) t
-    ${filter ? `WHERE full_name LIKE '%${filter}%' OR username LIKE '%${filter}%' OR title LIKE '%${filter}%'` : ''}
+    ${whereClause}
     LIMIT ? OFFSET ?
     `,
-    [teacherId, limit, (page - 1) * limit],
+    params,
   );
 
   const studentIdResults = rows as { student_id: number }[];
@@ -163,6 +171,13 @@ export const fetchLatestSubmissionsCountByTeacherId = async (
   teacherId: number,
   filter: string,
 ): Promise<number | null> => {
+  const params: (string | number)[] = [teacherId];
+  let whereClause = '';
+  if (filter) {
+    const likeFilter = `%${filter}%`;
+    whereClause = 'WHERE full_name LIKE ? OR username LIKE ? OR title LIKE ?';
+    params.push(likeFilter, likeFilter, likeFilter);
+  }
   const [rows] = await pool.query(
     `
     SELECT COUNT(*) FROM (
@@ -183,9 +198,9 @@ export const fetchLatestSubmissionsCountByTeacherId = async (
       INNER JOIN assignments a ON s.assignment_id = a.id
       INNER JOIN users ON s.student_id = users.id
     ) t
-    ${filter ? `WHERE full_name LIKE '%${filter}%' OR username LIKE '%${filter}%' OR title LIKE '%${filter}%'` : ''}
+    ${whereClause}
     `,
-    [teacherId],
+    params,
   );
   const result = rows as { 'COUNT(*)': number }[];
   return result.length > 0 ? result[0]['COUNT(*)'] : null;
@@ -198,6 +213,14 @@ export const fetchLatestSubmissionsByAssignmentIdTeacherId = async (
   page: number,
   filter: string,
 ): Promise<AssignmentSubmissionListingItem[]> => {
+  const params: (string | number)[] = [assignmentId, teacherId];
+  let whereClause = '';
+  if (filter) {
+    const likeFilter = `%${filter}%`;
+    whereClause = 'WHERE full_name LIKE ? OR username LIKE ?';
+    params.push(likeFilter, likeFilter);
+  }
+  params.push(limit, (page - 1) * limit);
   const [rows] = await pool.query(
     `
     SELECT t.student_id
@@ -217,10 +240,10 @@ export const fetchLatestSubmissionsByAssignmentIdTeacherId = async (
       INNER JOIN users ON s.student_id = users.id
       ORDER BY s.submitted_at DESC
     ) t
-    ${filter ? `WHERE full_name LIKE '%${filter}%' OR username LIKE '%${filter}%'` : ''}
+    ${whereClause}
     LIMIT ? OFFSET ?
     `,
-    [assignmentId, teacherId, limit, (page - 1) * limit],
+    params,
   );
 
   const studentIdResults = rows as { student_id: number }[];
@@ -268,6 +291,13 @@ export const fetchLatestSubmissionsCountByAssignmentIdTeacherId = async (
   teacherId: number,
   filter: string,
 ): Promise<number | null> => {
+  const params: (string | number)[] = [assignmentId, assignmentId, teacherId];
+  let whereClause = '';
+  if (filter) {
+    const likeFilter = `%${filter}%`;
+    whereClause = 'WHERE full_name LIKE ? OR username LIKE ?';
+    params.push(likeFilter, likeFilter);
+  }
   const [rows] = await pool.query(
     `
     SELECT COUNT(*) FROM (
@@ -290,9 +320,9 @@ export const fetchLatestSubmissionsCountByAssignmentIdTeacherId = async (
       INNER JOIN assignment_teachers at ON s.assignment_id = at.assignment_id AND at.teacher_id = ?
       INNER JOIN users ON s.student_id = users.id
     ) t
-    ${filter ? `WHERE full_name LIKE '%${filter}%' OR username LIKE '%${filter}%'` : ''}
+    ${whereClause}
     `,
-    [assignmentId, assignmentId, teacherId],
+    params,
   );
   const result = rows as { 'COUNT(*)': number }[];
   return result.length > 0 ? result[0]['COUNT(*)'] : null;
