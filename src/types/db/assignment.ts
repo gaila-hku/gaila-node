@@ -48,12 +48,6 @@ export interface AssignmentTool {
   enabled: boolean;
 }
 
-export interface AssignmentTeacher {
-  id: number;
-  assignment_id: number;
-  teacher_id: number;
-}
-
 export interface AssignmentTarget {
   id: number;
   assignment_id: number;

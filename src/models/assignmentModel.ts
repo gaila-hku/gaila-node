@@ -10,7 +10,6 @@ import {
   AssignmentTeacherListingItem,
 } from 'types/assignment';
 import { Assignment } from 'types/db/assignment';
-import { ClassTeacher } from 'types/db/class';
 
 type AssignmentFilterType = {
   search?: string;
@@ -69,7 +68,8 @@ export const fetchAssignmentsByTeacherId = async (
           CASE WHEN COUNT(DISTINCT fs.stage_id) = COUNT(DISTINCT ast.id) AND COUNT(DISTINCT g.submission_id) > 0 THEN 1 ELSE 0 END as graded,
           MAX(g.overall_score) as score
         FROM assignments a
-        LEFT JOIN assignment_teachers at ON a.id = at.assignment_id
+        LEFT JOIN assignment_targets at ON a.id = at.assignment_id
+        LEFT JOIN class_teachers ct ON at.class_id = ct.class_id
         JOIN (
           SELECT DISTINCT student_id, assignment_id from assignment_targets WHERE student_id is not null
           UNION
@@ -79,7 +79,7 @@ export const fetchAssignmentsByTeacherId = async (
         JOIN assignment_stages ast ON a.id = ast.assignment_id
         LEFT JOIN assignment_submissions fs ON ast.id = fs.stage_id AND fs.student_id = student_ids.student_id AND fs.is_final = 1
         LEFT JOIN assignment_grades g ON fs.id = g.submission_id
-        WHERE (at.teacher_id = ? OR a.created_by = ?) AND title LIKE ? ${filter.type ? 'AND type = ?' : ''}
+        WHERE (ct.teacher_id = ? OR a.created_by = ?) AND title LIKE ? ${filter.type ? 'AND type = ?' : ''}
         GROUP BY a.id, student_ids.student_id
       ) counts
       GROUP BY counts.id
@@ -114,8 +114,9 @@ export const fetchAssignmentsCountByTeacherId = async (
           ELSE 'active'
         END AS status
       FROM assignments a
-      LEFT JOIN assignment_teachers at ON a.id = at.assignment_id
-      WHERE (at.teacher_id = ? OR a.created_by = ?) AND title LIKE ? ${filter.type ? 'AND type = ?' : ''}
+      LEFT JOIN assignment_targets at ON a.id = at.assignment_id
+      LEFT JOIN class_teachers ct ON at.class_id = ct.class_id
+      WHERE (ct.teacher_id = ? OR a.created_by = ?) AND title LIKE ? ${filter.type ? 'AND type = ?' : ''}
     ) t
       ${filter.status ? 'WHERE status = ?' : ''}
     `,
@@ -303,19 +304,6 @@ export const saveNewAssignment = async (
 
   // 2. Add enrollments
   for (const enrolledClassId of enrolledClassIds) {
-    const [teacherRows] = await pool.query(
-      'SELECT teacher_id FROM class_teachers WHERE class_id = ?',
-      [enrolledClassId],
-    );
-    const teacherIds = (teacherRows as ClassTeacher[]).map(
-      row => row.teacher_id,
-    );
-    for (const teacherId of teacherIds) {
-      await pool.query(
-        'INSERT INTO assignment_teachers (assignment_id, teacher_id) VALUES (?, ?)',
-        [assignmentId, teacherId],
-      );
-    }
     await pool.query(
       'INSERT INTO assignment_targets (assignment_id, class_id) VALUES (?, ?)',
       [assignmentId, enrolledClassId],
@@ -433,19 +421,6 @@ export const updateExistingAssignment = async (
       await pool.query('DELETE FROM assignment_targets WHERE id = ?', [
         enrolledClass.id,
       ]);
-      const [teacherRows] = await pool.query(
-        'SELECT teacher_id FROM class_teachers WHERE class_id = ?',
-        [enrolledClass.id],
-      );
-      const teacherIds = (teacherRows as ClassTeacher[]).map(
-        row => row.teacher_id,
-      );
-      for (const teacherId of teacherIds) {
-        await pool.query(
-          'DELETE FROM assignment_teachers WHERE assignment_id = ? AND teacher_id = ?',
-          [assignmentId, teacherId],
-        );
-      }
     }
   }
 
@@ -459,19 +434,6 @@ export const updateExistingAssignment = async (
       )
     ) {
       continue;
-    }
-    const [teacherRows] = await pool.query(
-      'SELECT teacher_id FROM class_teachers WHERE class_id = ?',
-      [enrolledClassId],
-    );
-    const teacherIds = (teacherRows as ClassTeacher[]).map(
-      row => row.teacher_id,
-    );
-    for (const teacherId of teacherIds) {
-      await pool.query(
-        'INSERT INTO assignment_teachers (assignment_id, teacher_id) VALUES (?, ?)',
-        [assignmentId, teacherId],
-      );
     }
     await pool.query(
       'INSERT INTO assignment_targets (assignment_id, class_id) VALUES (?, ?)',
@@ -608,8 +570,9 @@ export const fetchAssignmentOptionsByTeacherId = async (
     `
       SELECT DISTINCT a.id, a.title
       FROM assignments a
-      JOIN assignment_teachers at ON a.id = at.assignment_id
-      WHERE at.teacher_id = ? OR a.created_by = ?
+      JOIN assignment_targets at ON a.id = at.assignment_id
+      JOIN class_teachers ct ON at.class_id = ct.class_id
+      WHERE ct.teacher_id = ? OR a.created_by = ?
     `,
     [teacherId, teacherId],
   );

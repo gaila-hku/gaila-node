@@ -116,7 +116,8 @@ export const fetchLatestSubmissionsByTeacherId = async (
         AND latest_submissions.student_id = s.student_id
         AND latest_submissions.max_submitted_at = s.submitted_at
       INNER JOIN assignments a ON s.assignment_id = a.id
-      INNER JOIN assignment_teachers at ON s.assignment_id = at.assignment_id AND at.teacher_id = ?
+      INNER JOIN assignment_targets at ON s.assignment_id = at.assignment_id
+      INNER JOIN class_teachers ct ON at.class_id = ct.class_id AND ct.teacher_id = ?
       INNER JOIN users ON s.student_id = users.id
       ORDER BY s.submitted_at DESC
     ) t
@@ -158,7 +159,8 @@ export const fetchLatestSubmissionsByTeacherId = async (
       FROM assignment_stages
       WHERE enabled = 1
     ) stages on stages.id = s.stage_id
-    INNER JOIN assignment_teachers at ON s.assignment_id = at.assignment_id AND at.teacher_id = ?
+    INNER JOIN assignment_targets at ON s.assignment_id = at.assignment_id
+    INNER JOIN class_teachers ct ON at.class_id = ct.class_id AND ct.teacher_id = ?
     INNER JOIN users ON s.student_id = users.id AND s.student_id IN (${studentIdPlaceholder})
     LEFT JOIN assignment_grades ag ON ag.submission_id = s.id
     `,
@@ -236,7 +238,8 @@ export const fetchLatestSubmissionsByAssignmentIdTeacherId = async (
       ) latest_submissions
         ON latest_submissions.student_id = s.student_id
         AND latest_submissions.max_submitted_at = s.submitted_at
-      INNER JOIN assignment_teachers at ON s.assignment_id = at.assignment_id AND at.teacher_id = ?
+      INNER JOIN assignment_targets at ON s.assignment_id = at.assignment_id
+      INNER JOIN class_teachers ct ON at.class_id = ct.class_id AND ct.teacher_id = ?
       INNER JOIN users ON s.student_id = users.id
       ORDER BY s.submitted_at DESC
     ) t
@@ -276,7 +279,8 @@ export const fetchLatestSubmissionsByAssignmentIdTeacherId = async (
       FROM assignment_stages
       WHERE assignment_id = ? AND enabled = 1
     ) stages on stages.id = s.stage_id
-    INNER JOIN assignment_teachers at ON s.assignment_id = at.assignment_id AND at.teacher_id = ?
+    INNER JOIN assignment_targets at ON s.assignment_id = at.assignment_id
+    INNER JOIN class_teachers ct ON at.class_id = ct.class_id AND ct.teacher_id = ?
     INNER JOIN users ON s.student_id = users.id AND s.student_id IN (${studentIdPlaceholder})
     LEFT JOIN assignment_grades ag ON ag.submission_id = s.id
     ORDER BY s.submitted_at DESC
@@ -316,8 +320,9 @@ export const fetchLatestSubmissionsCountByAssignmentIdTeacherId = async (
         SELECT id as stage_id
         FROM assignment_stages
         WHERE assignment_id = ? AND enabled = 1
-      ) stages on stages.stage_id = s.stage_id
-      INNER JOIN assignment_teachers at ON s.assignment_id = at.assignment_id AND at.teacher_id = ?
+    ) stages on stages.stage_id = s.stage_id
+    INNER JOIN assignment_targets at ON s.assignment_id = at.assignment_id
+    INNER JOIN class_teachers ct ON at.class_id = ct.class_id AND ct.teacher_id = ?
       INNER JOIN users ON s.student_id = users.id
     ) t
     ${whereClause}
