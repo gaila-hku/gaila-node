@@ -9,7 +9,9 @@ import {
   getClassOptions,
   getStudentOptions,
   getUserListing,
+  getUserProfile,
   modifyUser,
+  updateUserProfile,
   uploadUser,
 } from '../controllers/userController';
 
@@ -35,5 +37,7 @@ router.post(
   upload.single('file'),
   uploadUser,
 );
+router.get('/profile', authorizeRole(), getUserProfile);
+router.post('/update-profile', authorizeRole(), updateUserProfile);
 
 export default router;

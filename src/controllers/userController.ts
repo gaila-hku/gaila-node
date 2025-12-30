@@ -9,6 +9,7 @@ import {
   createNewUser,
   deleteExistingUser,
   fetchStudentOptionsInClass,
+  fetchUserById,
   fetchUserByUsername,
   fetchUserCount,
   fetchUsers,
@@ -126,10 +127,10 @@ export const modifyUser = async (req: AuthorizedRequest, res: Response) => {
     userId,
     req.body.username,
     req.body.password,
-    req.body.role,
     req.body.first_name,
     req.body.last_name,
     req.body.lang,
+    req.body.role,
   );
   return res.json(result);
 };
@@ -218,10 +219,10 @@ export const uploadUser = async (req: AuthorizedRequest, res: Response) => {
             existingUser.id,
             row.username,
             row.password,
-            row.role,
             row.first_name,
             row.last_name,
             row.lang,
+            row.role,
           );
         } catch (e) {
           results.push({
@@ -300,4 +301,66 @@ export const uploadUser = async (req: AuthorizedRequest, res: Response) => {
       error_code: 500,
     });
   }
+};
+
+export const getUserProfile = async (req: AuthorizedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) {
+    return res
+      .status(401)
+      .json({ error_message: 'User not authenticated', error_code: 401 });
+  }
+
+  const user = await fetchUserById(userId);
+  if (!user) {
+    return res
+      .status(404)
+      .json({ error_message: 'User not found', error_code: 404 });
+  }
+
+  const { password: _, ...userProfile } = user;
+  return res.json(userProfile);
+};
+
+export const updateUserProfile = async (
+  req: AuthorizedRequest,
+  res: Response,
+) => {
+  const userId = req.user?.id;
+  if (!userId) {
+    return res
+      .status(401)
+      .json({ error_message: 'User not authenticated', error_code: 401 });
+  }
+
+  const { username, password, first_name, last_name, lang } = req.body;
+
+  if (!username) {
+    return res
+      .status(400)
+      .json({ error_message: 'Username is required', error_code: 400 });
+  }
+
+  const existingUser = await fetchUserByUsername(username);
+  if (existingUser && existingUser.id !== userId) {
+    return res.status(409).json({ error_message: 'Username already exists' });
+  }
+
+  const updatedUser = await updateExistingUser(
+    userId,
+    username,
+    password,
+    first_name,
+    last_name,
+    lang,
+  );
+
+  if (!updatedUser) {
+    return res
+      .status(404)
+      .json({ error_message: 'User not found', error_code: 404 });
+  }
+
+  const { password: _, ...userProfile } = updatedUser;
+  return res.json(userProfile);
 };

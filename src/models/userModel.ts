@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import { isString } from 'lodash-es';
 import { ResultSetHeader } from 'mysql2';
 
 import pool from 'config/db';
@@ -116,10 +117,10 @@ export const updateExistingUser = async (
   id: number,
   username: string,
   password: string,
-  role: string,
   first_name: string,
   last_name: string,
   lang: string,
+  role?: string,
 ): Promise<User | null> => {
   const updateParams = [];
   const placeholders = [];
@@ -136,11 +137,11 @@ export const updateExistingUser = async (
     updateParams.push(role);
     placeholders.push('role = ?');
   }
-  if (first_name) {
+  if (isString(first_name)) {
     updateParams.push(first_name);
     placeholders.push('first_name = ?');
   }
-  if (last_name) {
+  if (isString(last_name)) {
     updateParams.push(last_name);
     placeholders.push('last_name = ?');
   }
