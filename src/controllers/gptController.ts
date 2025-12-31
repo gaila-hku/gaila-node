@@ -19,19 +19,24 @@ import {
   fetchToolSettingsByAssignmentToolId,
 } from 'models/assignmentToolModel';
 import {
-  fetchGptUnstructuredLogCountByUserId,
-  fetchGptUnstructuredLogsByUserId,
+  fetchGptUnstructuredLogCountByUserIdAssignmentId,
+  fetchGptUnstructuredLogListingByUserIdAssignmentId,
   fetchGptUnstructuredLogsByUserIdToolId,
   fetchLatestGptLogByUserIdToolId,
   fetchLatestStructuredGptLogsByUserIdToolId,
+  fetchStudentRevisionExplanationByGptLogIdsAspectIds,
+  fetchStudentRevisionExplanationByUserIdAssignmentId,
+  fetchStudentRevisionExplanationCountByUserIdAssignmentId,
   fetchUncategorizedPromptsByAssignmentId,
   saveNewGptLog,
   savePromptCategories,
+  saveStudentRevisionExplanation,
 } from 'models/gptLogModel';
 import { saveNewTraceData } from 'models/traceDataModel';
 
 import { AssignmentEssayContent } from 'types/db/assignment';
 import { GptLog } from 'types/db/gpt';
+import { StudentRevisionExplanationListingItem } from 'types/external/gpt';
 import { AuthorizedRequest } from 'types/request';
 import parseListingQuery from 'utils/parseListingQuery';
 import parseQueryNumber from 'utils/parseQueryNumber';
@@ -855,14 +860,22 @@ export const getGptUnstrcturedChatHistory = async (
       .json({ error_message: 'Missing user id', error_code: 400 });
   }
 
+  const assignmentId = parseQueryNumber(req.query.assignment_id);
+  if (!isNumber(assignmentId)) {
+    return res
+      .status(400)
+      .json({ error_message: 'Missing assignment id', error_code: 400 });
+  }
+
   try {
     const { limit, page } = parseListingQuery(req);
 
     try {
       const resObj = { page, limit, value: [] as GptLog[] };
 
-      resObj.value = await fetchGptUnstructuredLogsByUserId(
+      resObj.value = await fetchGptUnstructuredLogListingByUserIdAssignmentId(
         userId,
+        assignmentId,
         limit,
         page,
       );
@@ -871,11 +884,164 @@ export const getGptUnstrcturedChatHistory = async (
         return res.json(resObj);
       }
 
-      const count = await fetchGptUnstructuredLogCountByUserId(userId);
+      const count = await fetchGptUnstructuredLogCountByUserIdAssignmentId(
+        userId,
+        assignmentId,
+      );
       return res.json({ ...resObj, count });
     } catch (err) {
       return res.status(500).json({
         error_message: 'Server error: ' + JSON.stringify(err),
+        error_code: 500,
+      });
+    }
+  } catch (e) {
+    return res.status(400).json({
+      error_message: 'Invalid query parameters: ' + (e as Error).message,
+      error_code: 400,
+    });
+  }
+};
+
+export const saveRevisionExplanation = async (
+  req: AuthorizedRequest,
+  res: Response,
+) => {
+  if (!req.user?.id) {
+    return res
+      .status(401)
+      .json({ error_message: 'User not authenticated', error_code: 401 });
+  }
+
+  const {
+    gpt_log_id: gptLogId,
+    aspect_id: aspectId,
+    response_type: responseType,
+    explanation,
+  } = req.body;
+
+  if (!gptLogId || !aspectId || !responseType) {
+    return res
+      .status(400)
+      .json({ error_message: 'Missing required fields', error_code: 400 });
+  }
+
+  try {
+    const aiResponseLog = await saveStudentRevisionExplanation(
+      req.user.id,
+      gptLogId,
+      aspectId,
+      responseType,
+      explanation,
+    );
+
+    if (!aiResponseLog) {
+      return res
+        .status(404)
+        .json({ error_message: 'GPT log not found', error_code: 404 });
+    }
+
+    return res.json(aiResponseLog);
+  } catch (e) {
+    return res.status(500).json({
+      error_message: 'Server error: ' + (e as Error).message,
+      error_code: 500,
+    });
+  }
+};
+
+export const getGptRevisionExplanationByGptLog = async (
+  req: AuthorizedRequest,
+  res: Response,
+) => {
+  if (!req.user?.id) {
+    return res
+      .status(401)
+      .json({ error_message: 'User not authenticated', error_code: 401 });
+  }
+
+  const gptLogIds = safeJsonParse(req.query.gpt_log_ids as string);
+  if (!isArray(gptLogIds)) {
+    return res
+      .status(400)
+      .json({ error_message: 'Invalid GPT Log IDs', error_code: 400 });
+  }
+
+  const aspectIds = safeJsonParse(req.query.aspect_ids as string);
+  if (!isArray(aspectIds)) {
+    return res
+      .status(400)
+      .json({ error_message: 'Invalid aspect IDs', error_code: 400 });
+  }
+
+  try {
+    const explanations =
+      await fetchStudentRevisionExplanationByGptLogIdsAspectIds(
+        gptLogIds as number[],
+        aspectIds as string[],
+      );
+    return res.json(explanations);
+  } catch (e) {
+    return res.status(500).json({
+      error_message: 'Server error: ' + (e as Error).message,
+      error_code: 500,
+    });
+  }
+};
+
+export const getGptRevisionExplanationListing = async (
+  req: AuthorizedRequest,
+  res: Response,
+) => {
+  if (!req.user?.id) {
+    return res
+      .status(401)
+      .json({ error_message: 'User not authenticated', error_code: 401 });
+  }
+
+  try {
+    const { limit, page } = parseListingQuery(req);
+
+    const studentId = parseQueryNumber(req.query.student_id);
+    if (isNil(studentId) || isNaN(studentId)) {
+      return res
+        .status(400)
+        .json({ error_message: 'Invalid student ID', error_code: 400 });
+    }
+
+    const assignmentId = parseQueryNumber(req.query.assignment_id);
+    if (isNil(assignmentId) || isNaN(assignmentId)) {
+      return res
+        .status(400)
+        .json({ error_message: 'Invalid assignment ID', error_code: 400 });
+    }
+
+    try {
+      const resObj = {
+        page,
+        limit,
+        value: [] as StudentRevisionExplanationListingItem[],
+      };
+      resObj.value = await fetchStudentRevisionExplanationByUserIdAssignmentId(
+        studentId,
+        assignmentId,
+        limit,
+        page,
+      );
+
+      if (req.query.skipCount) {
+        return res.json(resObj);
+      }
+
+      const count =
+        await fetchStudentRevisionExplanationCountByUserIdAssignmentId(
+          studentId,
+          assignmentId,
+        );
+      return res.json({ ...resObj, count });
+    } catch (e) {
+      return res.status(500).json({
+        error_message: 'Server error: ' + (e as Error).message,
         error_code: 500,
       });
     }

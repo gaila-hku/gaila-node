@@ -2,7 +2,8 @@ import { fetchStudentIdsByAssignmentId } from 'models/assignmentModel';
 import { ResultSetHeader } from 'mysql2';
 
 import pool from 'config/db';
-import { GptLog } from 'types/db/gpt';
+import { GptLog, StudentRevisionExplanation } from 'types/db/gpt';
+import { StudentRevisionExplanationListingItem } from 'types/external/gpt';
 import {
   AgentUsageData,
   GptAnalytics,
@@ -326,8 +327,9 @@ export const fetchAgentUsageByAssignmentIdUserId = async (
   }));
 };
 
-export const fetchGptUnstructuredLogsByUserId = async (
+export const fetchGptUnstructuredLogListingByUserIdAssignmentId = async (
   userId: number,
+  assignmentId: number,
   limit: number,
   page: number,
 ) => {
@@ -335,22 +337,107 @@ export const fetchGptUnstructuredLogsByUserId = async (
     `SELECT logs.*, at.tool_key
     FROM gpt_logs logs
     JOIN assignment_tools at ON logs.assignment_tool_id = at.id
-    WHERE user_id = ? AND is_structured = 0
+    WHERE user_id = ? AND at.assignment_id = ? AND is_structured = 0
     ORDER BY user_ask_time DESC
     LIMIT ? OFFSET ?`,
-    [userId, limit, (page - 1) * limit],
+    [userId, assignmentId, limit, (page - 1) * limit],
   );
   return rows as (GptLog & { tool_key: string })[];
 };
 
-export const fetchGptUnstructuredLogCountByUserId = async (
+export const fetchGptUnstructuredLogCountByUserIdAssignmentId = async (
   userId: number,
+  assignmentId: number,
 ): Promise<number> => {
   const [rows] = await pool.query(
-    `SELECT COUNT(*) FROM gpt_logs 
-    WHERE user_id = ? AND is_structured = 0`,
-    [userId],
+    `SELECT COUNT(*) FROM gpt_logs logs
+    JOIN assignment_tools at ON logs.assignment_tool_id = at.id
+    WHERE user_id = ? AND at.assignment_id = ? AND is_structured = 0`,
+    [userId, assignmentId],
   );
   const result = rows as { 'COUNT(*)': number }[];
   return result[0]['COUNT(*)'];
+};
+
+export const fetchStudentRevisionExplanationByUserIdAssignmentId = async (
+  userId: number,
+  assignmentId: number,
+  limit: number,
+  page: number,
+) => {
+  const [rows] = await pool.query(
+    `SELECT sre.id, sre.user_id, sre.aspect_id, sre.response_type, sre.explanation, 
+      ( 
+        SELECT JSON_OBJECT('id', log.id, 'user_ask_time', log.user_ask_time, 'user_question', log.user_question, 'gpt_answer', log.gpt_answer, 'is_structured', log.is_structured)
+        FROM gpt_logs log
+        WHERE sre.gpt_log_id = log.id
+      ) as gpt_log
+    FROM student_revision_explanations sre
+    JOIN gpt_logs gl ON sre.gpt_log_id = gl.id
+    JOIN assignment_tools at ON gl.assignment_tool_id = at.id AND at.assignment_id = ?
+    WHERE sre.user_id = ?
+    ORDER BY user_ask_time DESC
+    LIMIT ? OFFSET ?`,
+    [assignmentId, userId, limit, (page - 1) * limit],
+  );
+  return rows as StudentRevisionExplanationListingItem[];
+};
+
+export const fetchStudentRevisionExplanationCountByUserIdAssignmentId = async (
+  userId: number,
+  assignmentId: number,
+) => {
+  const [rows] = await pool.query(
+    `SELECT COUNT(*)
+    FROM student_revision_explanations sre
+    JOIN gpt_logs gl ON sre.gpt_log_id = gl.id
+    JOIN assignment_tools at ON gl.assignment_tool_id = at.id AND at.assignment_id = ?
+    WHERE sre.user_id = ?`,
+    [assignmentId, userId],
+  );
+  const result = rows as { 'COUNT(*)': number }[];
+  return result[0]['COUNT(*)'];
+};
+
+export const fetchStudentRevisionExplanationByGptLogIdsAspectIds = async (
+  gptLogIds: number[],
+  aspectIds: string[],
+) => {
+  if (gptLogIds.length === 0 || aspectIds.length === 0) {
+    return [];
+  }
+
+  if (gptLogIds.length !== aspectIds.length) {
+    throw new Error('gptLogIds and aspectIds must have the same length');
+  }
+
+  const [rows] = await pool.query(
+    `SELECT * from student_revision_explanations WHERE gpt_log_id IN (?) AND aspect_id IN (?)`,
+    [gptLogIds, aspectIds],
+  );
+  return rows as StudentRevisionExplanation[];
+};
+
+export const saveStudentRevisionExplanation = async (
+  userId: number,
+  gptLogId: number,
+  aspectId: string,
+  responseType: StudentRevisionExplanation['response_type'],
+  explanation: string,
+): Promise<StudentRevisionExplanation> => {
+  const savedAt = Date.now();
+  const [insertRows] = await pool.query(
+    'INSERT INTO student_revision_explanations (user_id, gpt_log_id, aspect_id, response_type, explanation, saved_at) VALUES (?, ?, ?, ?, ?, ?)',
+    [userId, gptLogId, aspectId, responseType, explanation, savedAt],
+  );
+  const id = (insertRows as ResultSetHeader).insertId;
+  return {
+    id,
+    user_id: userId,
+    gpt_log_id: gptLogId,
+    aspect_id: aspectId,
+    response_type: responseType,
+    explanation: explanation,
+    saved_at: savedAt,
+  };
 };
