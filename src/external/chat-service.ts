@@ -6,17 +6,12 @@ import { GptClassificationResponse, GptResponse } from 'types/external/gpt';
 
 const chatServiceUrl = process.env.CHAT_SERVICE_URL || 'http://localhost:5000';
 
-const defaultChatRequest = {
-  myusername: process.env.CHAT_SERVICE_USERNAME || '',
-  mypassword: process.env.CHAT_SERVICE_PASSWORD || '',
-  chatgptParameters: '1000;;;1;;;2',
-};
-
-const defaultChatFetchOptions = {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/x-www-form-urlencoded',
-  },
+const initFormData = () => {
+  const formData = new FormData();
+  formData.append('myusername', process.env.CHAT_SERVICE_USERNAME || '');
+  formData.append('mypassword', process.env.CHAT_SERVICE_PASSWORD || '');
+  formData.append('chatgptParameters', '1000;;;1;;;2');
+  return formData;
 };
 
 export const fetchChatResponse = async (
@@ -28,24 +23,23 @@ export const fetchChatResponse = async (
   taskDescription: string,
   config: ChatbotConfig | null,
 ): Promise<GptResponse> => {
-  const data = new URLSearchParams({
-    ...defaultChatRequest,
-    userQuestions: question,
-    chatgptRoleDescription: rolePrompt,
-    taskDescription,
-    essay,
-    rubrics,
-    past_messages: JSON.stringify(pastMessages),
-    ...(config
-      ? {
-          chatgptParameters: `${config.max_tokens};;;${config.choices};;;${config.temperature}`,
-        }
-      : {}),
-  });
+  const formData = initFormData();
+  formData.append('userQuestions', question);
+  formData.append('chatgptRoleDescription', rolePrompt);
+  formData.append('taskDescription', taskDescription);
+  formData.append('essay', essay);
+  formData.append('rubrics', rubrics);
+  formData.append('past_messages', JSON.stringify(pastMessages));
+  if (config) {
+    formData.append(
+      'chatgptParameters',
+      `${config.max_tokens};;;${config.choices};;;${config.temperature}`,
+    );
+  }
 
   const res = await fetch(chatServiceUrl + '/chatgpt', {
-    ...defaultChatFetchOptions,
-    body: data,
+    method: 'POST',
+    body: formData,
   });
 
   return res.json();
@@ -61,25 +55,26 @@ export const fetchIdeationAgentResponse = async (
   stage: number | undefined,
   config: ChatbotConfig | null,
 ): Promise<GptResponse> => {
-  const data = new URLSearchParams({
-    ...defaultChatRequest,
-    userQuestions: question,
-    chatgptRoleDescription: rolePrompt,
-    taskDescription,
-    rubrics,
-    past_messages: JSON.stringify(pastMessages),
-    is_structured: is_structured ? '1' : '0',
-    ...(isNumber(stage) ? { stage: stage.toString() } : {}),
-    ...(config
-      ? {
-          chatgptParameters: `${config.max_tokens};;;${config.choices};;;${config.temperature}`,
-        }
-      : {}),
-  });
+  const formData = initFormData();
+  formData.append('userQuestions', question);
+  formData.append('chatgptRoleDescription', rolePrompt);
+  formData.append('taskDescription', taskDescription);
+  formData.append('rubrics', rubrics);
+  formData.append('past_messages', JSON.stringify(pastMessages));
+  formData.append('is_structured', is_structured ? '1' : '0');
+  if (isNumber(stage)) {
+    formData.append('stage', stage.toString());
+  }
+  if (config) {
+    formData.append(
+      'chatgptParameters',
+      `${config.max_tokens};;;${config.choices};;;${config.temperature}`,
+    );
+  }
 
   const res = await fetch(chatServiceUrl + '/ideation-agent', {
-    ...defaultChatFetchOptions,
-    body: data,
+    method: 'POST',
+    body: formData,
   });
 
   return res.json();
@@ -92,22 +87,20 @@ export const fetchDictionaryAgentResponse = async (
   is_structured: boolean,
   config: ChatbotConfig | null,
 ): Promise<GptResponse> => {
-  const data = new URLSearchParams({
-    ...defaultChatRequest,
-    userQuestions: question,
-    chatgptRoleDescription: rolePrompt,
-    past_messages: JSON.stringify(pastMessages),
-    is_structured: is_structured ? '1' : '0',
-    ...(config
-      ? {
-          chatgptParameters: `${config.max_tokens};;;${config.choices};;;${config.temperature}`,
-        }
-      : {}),
-  });
-
+  const formData = initFormData();
+  formData.append('userQuestions', question);
+  formData.append('chatgptRoleDescription', rolePrompt);
+  formData.append('past_messages', JSON.stringify(pastMessages));
+  formData.append('is_structured', is_structured ? '1' : '0');
+  if (config) {
+    formData.append(
+      'chatgptParameters',
+      `${config.max_tokens};;;${config.choices};;;${config.temperature}`,
+    );
+  }
   const res = await fetch(chatServiceUrl + '/dictionary-agent', {
-    ...defaultChatFetchOptions,
-    body: data,
+    method: 'POST',
+    body: formData,
   });
 
   return res.json();
@@ -121,23 +114,22 @@ export const fetchGrammarAgentResponse = async (
   is_structured: boolean,
   config: ChatbotConfig | null,
 ): Promise<GptResponse> => {
-  const data = new URLSearchParams({
-    ...defaultChatRequest,
-    userQuestions: question,
-    chatgptRoleDescription: rolePrompt,
-    essay,
-    past_messages: JSON.stringify(pastMessages),
-    is_structured: is_structured ? '1' : '0',
-    ...(config
-      ? {
-          chatgptParameters: `${config.max_tokens};;;${config.choices};;;${config.temperature}`,
-        }
-      : {}),
-  });
+  const formData = initFormData();
+  formData.append('userQuestions', question);
+  formData.append('chatgptRoleDescription', rolePrompt);
+  formData.append('essay', essay);
+  formData.append('past_messages', JSON.stringify(pastMessages));
+  formData.append('is_structured', is_structured ? '1' : '0');
+  if (config) {
+    formData.append(
+      'chatgptParameters',
+      `${config.max_tokens};;;${config.choices};;;${config.temperature}`,
+    );
+  }
 
   const res = await fetch(chatServiceUrl + '/grammar-agent', {
-    ...defaultChatFetchOptions,
-    body: data,
+    method: 'POST',
+    body: formData,
   });
 
   return res.json();
@@ -153,25 +145,24 @@ export const fetchAutogradeAgentResponse = async (
   is_structured: boolean,
   config: ChatbotConfig | null,
 ): Promise<GptResponse> => {
-  const data = new URLSearchParams({
-    ...defaultChatRequest,
-    userQuestions: question,
-    chatgptRoleDescription: rolePrompt,
-    taskDescription,
-    essay,
-    rubrics,
-    past_messages: JSON.stringify(pastMessages),
-    is_structured: is_structured ? '1' : '0',
-    ...(config
-      ? {
-          chatgptParameters: `${config.max_tokens};;;${config.choices};;;${config.temperature}`,
-        }
-      : {}),
-  });
+  const formData = initFormData();
+  formData.append('userQuestions', question);
+  formData.append('chatgptRoleDescription', rolePrompt);
+  formData.append('taskDescription', taskDescription);
+  formData.append('essay', essay);
+  formData.append('rubrics', rubrics);
+  formData.append('past_messages', JSON.stringify(pastMessages));
+  formData.append('is_structured', is_structured ? '1' : '0');
+  if (config) {
+    formData.append(
+      'chatgptParameters',
+      `${config.max_tokens};;;${config.choices};;;${config.temperature}`,
+    );
+  }
 
   const res = await fetch(chatServiceUrl + '/autograde-agent', {
-    ...defaultChatFetchOptions,
-    body: data,
+    method: 'POST',
+    body: formData,
   });
 
   return res.json();
@@ -187,25 +178,24 @@ export const fetchRevisionAgentResponse = async (
   is_structured: boolean,
   config: ChatbotConfig | null,
 ): Promise<GptResponse> => {
-  const data = new URLSearchParams({
-    ...defaultChatRequest,
-    userQuestions: question,
-    chatgptRoleDescription: rolePrompt,
-    essay,
-    rubrics,
-    past_messages: JSON.stringify(pastMessages),
-    taskDescription,
-    is_structured: is_structured ? '1' : '0',
-    ...(config
-      ? {
-          chatgptParameters: `${config.max_tokens};;;${config.choices};;;${config.temperature}`,
-        }
-      : {}),
-  });
+  const formData = initFormData();
+  formData.append('userQuestions', question);
+  formData.append('chatgptRoleDescription', rolePrompt);
+  formData.append('taskDescription', taskDescription);
+  formData.append('essay', essay);
+  formData.append('rubrics', rubrics);
+  formData.append('past_messages', JSON.stringify(pastMessages));
+  formData.append('is_structured', is_structured ? '1' : '0');
+  if (config) {
+    formData.append(
+      'chatgptParameters',
+      `${config.max_tokens};;;${config.choices};;;${config.temperature}`,
+    );
+  }
 
   const res = await fetch(chatServiceUrl + '/revision-agent', {
-    ...defaultChatFetchOptions,
-    body: data,
+    method: 'POST',
+    body: formData,
   });
 
   return res.json();
@@ -215,15 +205,15 @@ export const fetchPromptClassificationResponse = async (
   taskDescription: string | null,
   prompts: string[],
 ): Promise<GptClassificationResponse> => {
-  const data = new URLSearchParams({
-    ...defaultChatRequest,
-    ...(taskDescription ? { taskDescription } : {}),
-    prompts: JSON.stringify(prompts),
-  });
+  const formData = initFormData();
+  if (taskDescription) {
+    formData.append('taskDescription', taskDescription);
+  }
+  formData.append('prompts', JSON.stringify(prompts));
 
   const res = await fetch(chatServiceUrl + '/classify-prompt', {
-    ...defaultChatFetchOptions,
-    body: data,
+    method: 'POST',
+    body: formData,
   });
 
   return res.json();
