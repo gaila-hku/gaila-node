@@ -1,5 +1,3 @@
-import { isNumber } from 'lodash-es';
-
 import { ChatbotConfig } from 'types/db/assignment';
 import { GptLog } from 'types/db/gpt';
 import { GptClassificationResponse, GptResponse } from 'types/external/gpt';
@@ -45,26 +43,24 @@ export const fetchChatResponse = async (
   return res.json();
 };
 
-export const fetchIdeationAgentResponse = async (
+export const fetchIdeationGuidingAgentResponse = async (
   question: string,
+  outline: string,
   rolePrompt: string,
   pastMessages: GptLog[],
   rubrics: string,
   taskDescription: string,
   is_structured: boolean,
-  stage: number | undefined,
   config: ChatbotConfig | null,
 ): Promise<GptResponse> => {
   const formData = initFormData();
   formData.append('userQuestions', question);
+  formData.append('outline', outline);
   formData.append('chatgptRoleDescription', rolePrompt);
   formData.append('taskDescription', taskDescription);
   formData.append('rubrics', rubrics);
   formData.append('past_messages', JSON.stringify(pastMessages));
   formData.append('is_structured', is_structured ? '1' : '0');
-  if (isNumber(stage)) {
-    formData.append('stage', stage.toString());
-  }
   if (config) {
     formData.append(
       'chatgptParameters',
@@ -72,7 +68,40 @@ export const fetchIdeationAgentResponse = async (
     );
   }
 
-  const res = await fetch(chatServiceUrl + '/ideation-agent', {
+  const res = await fetch(chatServiceUrl + '/ideation-guiding-agent', {
+    method: 'POST',
+    body: formData,
+  });
+
+  return res.json();
+};
+
+export const fetchOutlineReviewAgentResponse = async (
+  question: string,
+  outline: string,
+  rolePrompt: string,
+  pastMessages: GptLog[],
+  rubrics: string,
+  taskDescription: string,
+  is_structured: boolean,
+  config: ChatbotConfig | null,
+): Promise<GptResponse> => {
+  const formData = initFormData();
+  formData.append('userQuestions', question);
+  formData.append('outline', outline);
+  formData.append('chatgptRoleDescription', rolePrompt);
+  formData.append('taskDescription', taskDescription);
+  formData.append('rubrics', rubrics);
+  formData.append('past_messages', JSON.stringify(pastMessages));
+  formData.append('is_structured', is_structured ? '1' : '0');
+  if (config) {
+    formData.append(
+      'chatgptParameters',
+      `${config.max_tokens};;;${config.choices};;;${config.temperature}`,
+    );
+  }
+
+  const res = await fetch(chatServiceUrl + '/outline-review-agent', {
     method: 'POST',
     body: formData,
   });

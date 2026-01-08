@@ -3,7 +3,8 @@ import {
   askDictionaryAgent,
   askGptModel,
   askGrammarAgent,
-  askIdeationAgent,
+  askIdeationGuidingAgent,
+  askOutlineReviewAgent,
   askRevisionAgent,
   getGptChatHistory,
   getGptRevisionExplanationByGptLog,
@@ -17,11 +18,12 @@ import { authorizeRole } from 'middleware/auth';
 
 const router = Router();
 
-router.post('/ask', askGptModel);
+router.post('/ask', authorizeRole(), askGptModel);
 router.get('/listing-chat', getGptChatHistory);
 
-router.post('/ask-ideation', authorizeRole(), askIdeationAgent);
-router.post('/ask-dictionary', askDictionaryAgent);
+router.post('/ask-ideation-guiding', authorizeRole(), askIdeationGuidingAgent);
+router.post('/ask-outline-review', authorizeRole(), askOutlineReviewAgent);
+router.post('/ask-dictionary', authorizeRole(), askDictionaryAgent);
 router.post('/ask-grammar', authorizeRole(), askGrammarAgent);
 router.post('/ask-autograde', authorizeRole(), askAutogradeAgent);
 router.post('/ask-revision', authorizeRole(), askRevisionAgent);
