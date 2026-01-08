@@ -995,7 +995,7 @@ export const getGptUnstrcturedChatHistory = async (
       .json({ error_message: 'User not authenticated', error_code: 401 });
   }
 
-  const userId = parseQueryNumber(req.query.user_id);
+  const userId = parseQueryNumber(req.query.user_id) || req.user.id;
   if (!isNumber(userId)) {
     return res
       .status(400)
