@@ -1,4 +1,3 @@
-import { isNumber } from 'lodash-es';
 import { saveNewAssignmentTool } from 'models/assignmentToolModel';
 import { ResultSetHeader } from 'mysql2';
 
@@ -9,7 +8,7 @@ import {
   AssignmentStageCreatePayload,
   AssignmentTeacherListingItem,
 } from 'types/assignment';
-import { Assignment } from 'types/db/assignment';
+import { Assignment, AssignmentStage } from 'types/db/assignment';
 
 type AssignmentFilterType = {
   search?: string;
@@ -457,14 +456,32 @@ export const updateExistingAssignment = async (
     );
   }
 
+  const [stageRows] = await pool.query(
+    'SELECT * FROM assignment_stages WHERE assignment_id = ?',
+    [assignmentId],
+  );
+  const existingStages = stageRows as AssignmentStage[];
+
+  for (const existingStage of existingStages) {
+    if (!stages.some(stage => stage.stage_type === existingStage.stage_type)) {
+      await pool.query(
+        'UPDATE assignment_stages SET enabled = 0 WHERE id = ?',
+        [existingStage.id],
+      );
+    }
+  }
+
   for (const [i, stage] of stages.entries()) {
     let stageId = 0;
-    if ('id' in stage && isNumber(stage.id)) {
+    const existingStage = existingStages.find(
+      es => es.stage_type === stage.stage_type,
+    );
+    if (existingStage) {
       await pool.query(
-        'UPDATE assignment_stages SET enabled = ?, order_index = ? WHERE id = ?',
-        [stage.enabled, i, stage.id],
+        'UPDATE assignment_stages SET enabled = ?, order_index = ? WHERE assignment_id = ? AND stage_type = ?',
+        [stage.enabled, i, assignmentId, stage.stage_type],
       );
-      stageId = stage.id;
+      stageId = existingStage.id;
     } else {
       const [insertRows] = await pool.query(
         'INSERT INTO assignment_stages (assignment_id, stage_type, order_index, enabled) VALUES (?, ?, ?, ?)',
