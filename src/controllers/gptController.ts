@@ -147,7 +147,7 @@ const prepareSubmissionContent = async (
   return JSON.stringify(submissionContent);
 };
 
-const pendingCateogryLogs: GptLog[] = [];
+const pendingCategoryLogs: GptLog[] = [];
 const CATEGORY_BATCH_SIZE = 5;
 
 const classifyPrompt = async (
@@ -155,13 +155,13 @@ const classifyPrompt = async (
   taskDescription: string | null,
   forceBatch?: boolean,
 ) => {
-  pendingCateogryLogs.push(gptlog);
-  if (pendingCateogryLogs.length < CATEGORY_BATCH_SIZE && !forceBatch) {
+  pendingCategoryLogs.push(gptlog);
+  if (pendingCategoryLogs.length < CATEGORY_BATCH_SIZE && !forceBatch) {
     return;
   }
   const res = await fetchPromptClassificationResponse(
     taskDescription,
-    pendingCateogryLogs.map(s => s.user_question),
+    pendingCategoryLogs.map(s => s.user_question),
   );
   if (!res.response.choices[0]) {
     console.error('Invalid response from ChatGPT');
@@ -177,11 +177,11 @@ const classifyPrompt = async (
   const categories = 'categories' in gptAnswer ? gptAnswer.categories : [];
   if (
     !isArray(categories) ||
-    categories.length !== pendingCateogryLogs.length ||
+    categories.length !== pendingCategoryLogs.length ||
     !categories.every(
       (s, index) =>
-        s.prompt ===
-        pendingCateogryLogs[index].user_question.replace(/\s\s+/g, ' '),
+        s.prompt.slice(0, 3) ===
+        pendingCategoryLogs[index].user_question.slice(0, 3),
     ) ||
     !categories.every(
       s => isNumber(s.prompt_nature_code) && isNumber(s.writing_aspect_code),
@@ -191,7 +191,7 @@ const classifyPrompt = async (
     return;
   }
   savePromptCategories(
-    pendingCateogryLogs.map(s => s.id),
+    pendingCategoryLogs.map(s => s.id),
     categories.map(s => s.prompt_nature_code),
     categories.map(s => s.writing_aspect_code),
   );
