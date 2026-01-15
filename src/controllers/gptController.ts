@@ -82,11 +82,11 @@ const prepareGptRequest = async (
   const { assignment_id: assignmentId, assignment_stage_id: stageId } =
     assignmentTool;
 
-  if (!assignmentId) {
-    throw new Error('Invalid assignment tool');
+  let taskDescription = '';
+  if (assignmentId) {
+    taskDescription =
+      (await fetchAssignmentDescriptionById(assignmentId)) || '';
   }
-
-  const taskDescription = await fetchAssignmentDescriptionById(assignmentId);
 
   const pastMessages = isStructured
     ? []
