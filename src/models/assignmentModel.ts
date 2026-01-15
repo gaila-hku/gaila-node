@@ -319,8 +319,14 @@ export const saveNewAssignment = async (
   await saveNewAssignmentTool(assignmentId, null, 'teacher_grading', true);
   for (const [i, stage] of stages.entries()) {
     const [insertStageRows] = await pool.query(
-      'INSERT INTO assignment_stages (assignment_id, stage_type, order_index, enabled) VALUES (?, ?, ?, ?)',
-      [assignmentId, stage.stage_type, i, stage.enabled],
+      'INSERT INTO assignment_stages (assignment_id, stage_type, order_index, enabled, config) VALUES (?, ?, ?, ?, ?)',
+      [
+        assignmentId,
+        stage.stage_type,
+        i,
+        stage.enabled,
+        JSON.stringify(stage.config),
+      ],
     );
     const insertStageResult = insertStageRows as ResultSetHeader;
     const stageId = insertStageResult.insertId;
@@ -478,14 +484,26 @@ export const updateExistingAssignment = async (
     );
     if (existingStage) {
       await pool.query(
-        'UPDATE assignment_stages SET enabled = ?, order_index = ? WHERE assignment_id = ? AND stage_type = ?',
-        [stage.enabled, i, assignmentId, stage.stage_type],
+        'UPDATE assignment_stages SET enabled = ?, order_index = ? WHERE assignment_id = ? AND stage_type = ? AND config = ?',
+        [
+          stage.enabled,
+          i,
+          assignmentId,
+          stage.stage_type,
+          JSON.stringify(stage.config),
+        ],
       );
       stageId = existingStage.id;
     } else {
       const [insertRows] = await pool.query(
-        'INSERT INTO assignment_stages (assignment_id, stage_type, order_index, enabled) VALUES (?, ?, ?, ?)',
-        [assignmentId, stage.stage_type, i, stage.enabled],
+        'INSERT INTO assignment_stages (assignment_id, stage_type, order_index, enabled, config) VALUES (?, ?, ?, ?, ?)',
+        [
+          assignmentId,
+          stage.stage_type,
+          i,
+          stage.enabled,
+          JSON.stringify(stage.config),
+        ],
       );
       const insertResult = insertRows as ResultSetHeader;
       stageId = insertResult.insertId;

@@ -23,6 +23,7 @@ export interface AssignmentStageCreatePayload {
   stage_type: string;
   enabled: boolean;
   tools: { key: string; enabled: boolean }[];
+  config?: string;
 }
 
 export interface AssignmentStageWithTools {
@@ -32,6 +33,7 @@ export interface AssignmentStageWithTools {
   order_index: number;
   enabled: boolean;
   tools: { id: number; key: string; enabled: boolean }[];
+  config?: string;
 }
 
 export type AssignmentEnrollment =

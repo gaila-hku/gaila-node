@@ -7,7 +7,7 @@ export const fetchAssignmentStagesWithToolsByAssignmentId = async (
 ): Promise<AssignmentStageWithTools[]> => {
   const [stageRows] = await pool.query(
     `
-    SELECT id, assignment_id, stage_type, enabled, order_index
+    SELECT id, assignment_id, stage_type, enabled, order_index, config
     FROM assignment_stages
     WHERE assignment_id = ?
     ORDER BY order_index

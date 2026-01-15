@@ -19,6 +19,7 @@ export interface AssignmentStage {
   stage_type: string;
   order_index: number;
   enabled: boolean;
+  config?: string;
 }
 
 export interface ChatbotConfig {
