@@ -229,7 +229,7 @@ async function migrateStage(connection: mysql.PoolConnection) {
           throw new Error('No new submission id found for grading update');
         }
         await connection.query(
-          'UPDATE assignment_gradings SET submission_id = ? WHERE id = ?',
+          'UPDATE assignment_grades SET submission_id = ? WHERE id = ?',
           [newSubmissionId, grading.id],
         );
       }
