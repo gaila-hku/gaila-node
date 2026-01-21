@@ -287,8 +287,12 @@ export const fetchAgentUsageByAssignmentIdUserId = async (
       s =>
         ![
           'teacher_grading',
+          'reading_general',
           'goal_general',
-          'writing_general',
+          'language_general',
+          'outlining_general',
+          'drafting_general',
+          'revising_general',
           'reflection_general',
         ].includes(s),
     );

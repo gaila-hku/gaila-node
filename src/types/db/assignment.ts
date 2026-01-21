@@ -62,8 +62,11 @@ export interface AssignmentSubmission {
   stage_id: number;
   student_id: number;
   content?:
+    | AssignmentReadingContent
     | AssignmentGoalContent
-    | AssignmentEssayContent
+    | AssignmentOutliningContent
+    | AssignmentDraftingContent
+    | AssignmentRevisingContent
     | AssignmentReflectionContent;
   submitted_at?: number;
   is_final?: boolean;
@@ -82,7 +85,7 @@ export interface AssignmentGrade {
 export interface AssignmentGoalContent {
   writing_goals: AssignmentGoal[];
   ai_goals: AssignmentGoal[];
-  isGoalConfirmed: boolean;
+  goal_confirmed: boolean;
 }
 
 export interface AssignmentGoal {
@@ -93,12 +96,33 @@ export interface AssignmentGoal {
   }[];
 }
 
-export interface AssignmentEssayContent {
-  title: string;
-  outline: string;
-  essay: string;
-  goals: AssignmentGoalContent | null;
+export interface AssignmentReadingContent {
+  annotations: {
+    start_index: number;
+    end_index: number;
+    type: 'highlight' | 'comment';
+    comment?: string;
+  }[];
 }
+
+export interface AssignmentOutliningContent {
+  outline: string;
+}
+
+export interface AssignmentDraftingContent {
+  title: string;
+  essay: string;
+}
+
+export interface AssignmentRevisingContent {
+  title: string;
+  essay: string;
+}
+
+export type AssignmentWritingContent =
+  | AssignmentOutliningContent
+  | AssignmentDraftingContent
+  | AssignmentRevisingContent;
 
 export interface AssignmentReflectionContent {
   reflections: { [key: string]: string };

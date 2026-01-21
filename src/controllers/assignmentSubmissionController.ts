@@ -30,7 +30,10 @@ import {
   AssignmentSubmissionListingItem,
   AssignmentSubmissionListingItemResponse,
 } from 'types/assignment';
-import { AssignmentEssayContent } from 'types/db/assignment';
+import {
+  AssignmentDraftingContent,
+  AssignmentRevisingContent,
+} from 'types/db/assignment';
 import { REMINDER_TYPES, StudentReminder } from 'types/db/reminder';
 import { AuthorizedRequest } from 'types/request';
 import getPlagiarisedSegments from 'utils/getPlagiarisedSegments';
@@ -310,14 +313,15 @@ export const getSubmissionDetails = async (
   }
 
   // 2. Get plagiarised segments
-  const writingSubmission = submissions.find(s => s.stage_type === 'writing');
+  const writingSubmission =
+    submissions.find(s => s.stage_type === 'revising') ||
+    submissions.find(s => s.stage_type === 'drafting');
   let essay = '';
   if (writingSubmission) {
-    const submissionContent =
-      writingSubmission.content as AssignmentEssayContent;
-    if ('essay' in submissionContent) {
-      essay = submissionContent.essay;
-    }
+    const submissionContent = writingSubmission.content as
+      | AssignmentRevisingContent
+      | AssignmentDraftingContent;
+    essay = submissionContent.essay;
   }
 
   const gptLogs = await fetchGptUnstructuredLogsByUserIdAssignmentId(

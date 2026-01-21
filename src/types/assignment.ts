@@ -1,8 +1,9 @@
 import {
   Assignment,
-  AssignmentEssayContent,
   AssignmentGoalContent,
+  AssignmentReadingContent,
   AssignmentReflectionContent,
+  AssignmentWritingContent,
 } from 'types/db/assignment';
 import { Class } from 'types/db/class';
 import { User } from 'types/db/user';
@@ -121,8 +122,9 @@ export interface AssignmentSubmissionDetail {
   last_name: string;
 
   content?:
+    | AssignmentReadingContent
     | AssignmentGoalContent
-    | AssignmentEssayContent
+    | AssignmentWritingContent
     | AssignmentReflectionContent;
   submitted_at?: number;
   is_final?: boolean;

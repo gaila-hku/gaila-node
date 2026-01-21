@@ -484,13 +484,13 @@ export const updateExistingAssignment = async (
     );
     if (existingStage) {
       await pool.query(
-        'UPDATE assignment_stages SET enabled = ?, order_index = ? WHERE assignment_id = ? AND stage_type = ? AND config = ?',
+        'UPDATE assignment_stages SET enabled = ?, order_index = ?, config = ? WHERE assignment_id = ? AND stage_type = ?',
         [
           stage.enabled,
           i,
+          JSON.stringify(stage.config),
           assignmentId,
           stage.stage_type,
-          JSON.stringify(stage.config),
         ],
       );
       stageId = existingStage.id;

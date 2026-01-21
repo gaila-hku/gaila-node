@@ -384,7 +384,7 @@ export const fetchLatestEssaySubmissionByAssignmentIdStudentId = async (
     INNER JOIN (
       SELECT id as stage_id
       FROM assignment_stages
-      WHERE stage_type = 'writing'
+      WHERE stage_type = 'drafting' OR stage_type = 'revising'
     ) stages on stages.stage_id = s.stage_id
     `,
     [assignmentId, studentId],

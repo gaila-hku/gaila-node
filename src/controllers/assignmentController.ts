@@ -28,7 +28,7 @@ import { fetchUsersByIds } from 'models/userModel';
 
 import { AssignmentOption, AssignmentView } from 'types/assignment';
 import { ClassOption } from 'types/class';
-import { Assignment, AssignmentEssayContent } from 'types/db/assignment';
+import { Assignment, AssignmentWritingContent } from 'types/db/assignment';
 import { Class } from 'types/db/class';
 import { User } from 'types/db/user';
 import { AuthorizedRequest } from 'types/request';
@@ -227,6 +227,49 @@ const assignmentValidation = async (
     )
   ) {
     throw new Error('Invalid stage data');
+  }
+
+  let outlineIndex = -1;
+  let draftingIndex = -1;
+  let revisingIndex = -1;
+  for (let i = 0; i < stages.length; i++) {
+    const stage = stages[i];
+    if (!stage.enabled) {
+      continue;
+    }
+    if (
+      stage.stage_type === 'reading' &&
+      (!isArray(stage.config?.readings) || stage.config?.readings.length === 0)
+    ) {
+      throw new Error('Reading stage must have at least one reading');
+    }
+    if (stage.stage_type === 'outline') {
+      outlineIndex = i;
+      if (outlineIndex > draftingIndex && draftingIndex !== -1) {
+        throw new Error('Outline stage cannot come after Drafting stage');
+      }
+      if (outlineIndex > revisingIndex && revisingIndex !== -1) {
+        throw new Error('Outline stage cannot come after Revising stage');
+      }
+    }
+    if (stage.stage_type === 'drafting') {
+      draftingIndex = i;
+      if (draftingIndex < outlineIndex && outlineIndex !== -1) {
+        throw new Error('Drafting stage cannot come before Outline stage');
+      }
+      if (draftingIndex > revisingIndex && revisingIndex !== -1) {
+        throw new Error('Drafting stage cannot come after Revising stage');
+      }
+    }
+    if (stage.stage_type === 'revising') {
+      revisingIndex = i;
+      if (revisingIndex < outlineIndex && outlineIndex !== -1) {
+        throw new Error('Revising stage cannot come before Outline stage');
+      }
+      if (revisingIndex < draftingIndex && draftingIndex !== -1) {
+        throw new Error('Revising stage cannot come before Drafting stage');
+      }
+    }
   }
 
   const classes = enrolledClassIds.length
@@ -443,15 +486,25 @@ export const getAssignmentProgressDetails = async (
       !stage.enabled ||
       !!submissions.find(s => s.stage_id === stage.id && s.is_final),
   );
-  const currentStage = isFinished
-    ? stages.findIndex(s => s.enabled && s.stage_type === 'writing')
-    : stages.findIndex(
-        s =>
-          s.enabled &&
-          !submissions.find(
-            submission => submission.stage_id === s.id && submission.is_final,
-          ),
-      );
+  let currentStage = stages.findIndex(
+    stage =>
+      stage.enabled &&
+      !submissions.find(s => s.stage_id === stage.id && s.is_final),
+  );
+  console.log(currentStage, stages);
+  if (currentStage === -1) {
+    currentStage = stages.findIndex(
+      s => s.enabled && s.stage_type === 'revising',
+    );
+  }
+  if (currentStage === -1) {
+    currentStage = stages.findIndex(
+      s => s.enabled && s.stage_type === 'drafting',
+    );
+  }
+  if (currentStage === -1) {
+    currentStage = 0;
+  }
 
   const resStages = stages.map(stage => {
     const submission = submissions.find(
@@ -501,7 +554,7 @@ export const getStudentAssignmentAnalytics = async (
   }
   let essay = '';
   const submissionContent =
-    latestEssaySubmission.content as AssignmentEssayContent;
+    latestEssaySubmission.content as AssignmentWritingContent;
   if ('essay' in submissionContent) {
     essay = submissionContent.essay;
   }
