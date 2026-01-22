@@ -38,6 +38,10 @@ const getOrderClause = (
   return `ORDER BY ${sort} ${direction}`;
 };
 
+const TEACHER_GRADING_TOOL_KEY = 'teacher_grading';
+const VOCAB_GENERATE_TOOL_KEY = 'vocab_generate';
+const DASHBOARD_GENERATE_TOOL_KEY = 'reflection_dashboard_generate';
+
 export const fetchAssignmentsByTeacherId = async (
   teacherId: number,
   limit: number,
@@ -316,7 +320,12 @@ export const saveNewAssignment = async (
   }
 
   // 3. Add tools
-  await saveNewAssignmentTool(assignmentId, null, 'teacher_grading', true);
+  await saveNewAssignmentTool(
+    assignmentId,
+    null,
+    TEACHER_GRADING_TOOL_KEY,
+    true,
+  );
   for (const [i, stage] of stages.entries()) {
     const [insertStageRows] = await pool.query(
       'INSERT INTO assignment_stages (assignment_id, stage_type, order_index, enabled, config) VALUES (?, ?, ?, ?, ?)',
@@ -337,6 +346,24 @@ export const saveNewAssignment = async (
         stageId,
         tool.key,
         tool.enabled,
+      );
+    }
+
+    if (stage.stage_type === 'language_preparation') {
+      await saveNewAssignmentTool(
+        assignmentId,
+        stageId,
+        VOCAB_GENERATE_TOOL_KEY,
+        true,
+      );
+    }
+
+    if (stage.stage_type === 'reflection') {
+      await saveNewAssignmentTool(
+        assignmentId,
+        stageId,
+        DASHBOARD_GENERATE_TOOL_KEY,
+        true,
       );
     }
   }

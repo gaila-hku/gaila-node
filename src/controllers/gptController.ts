@@ -8,6 +8,7 @@ import {
   fetchOutlineReviewAgentResponse,
   fetchPromptClassificationResponse,
   fetchRevisionAgentResponse,
+  fetchVocabGenerationResponse,
 } from 'external/chat-service';
 import { isArray, isNil, isNumber } from 'lodash-es';
 import {
@@ -124,10 +125,7 @@ const prepareSubmissionContent = async (
     stageId,
     req.user.id,
   );
-  if (!latestEssaySubmission) {
-    throw new Error('Essay not given and assignment submission not found');
-  }
-  const submissionContent = latestEssaySubmission.content;
+  const submissionContent = latestEssaySubmission?.content;
   if (!submissionContent) {
     return '';
   }
@@ -1190,6 +1188,85 @@ export const getGptRevisionExplanationListing = async (
   } catch (e) {
     return res.status(400).json({
       error_message: 'Invalid query parameters: ' + (e as Error).message,
+      error_code: 400,
+    });
+  }
+};
+
+export const generateVocab = async (req: AuthorizedRequest, res: Response) => {
+  try {
+    const {
+      userId,
+      rolePrompt,
+      assignmentId,
+      assignmentToolId,
+      stageId,
+      taskDescription,
+      config,
+    } = await prepareGptRequest(req, { questionUnstructuredOnly: true });
+
+    if (!assignmentId) {
+      throw new Error('Invalid assignment ID');
+    }
+
+    if (!stageId) {
+      throw new Error('Invalid assignment stage ID');
+    }
+
+    const rubrics = (await fetchRubricsByAssignmentId(assignmentId)) || '';
+
+    try {
+      const userAskTime = Date.now();
+      const chatRes = await fetchVocabGenerationResponse(
+        rolePrompt,
+        JSON.stringify(rubrics),
+        taskDescription || '',
+        config,
+      );
+
+      if (!chatRes.response.choices[0]) {
+        throw new Error('Invalid response from ChatGPT');
+      }
+      const gptAnswer = chatRes.response.choices[0].message.parsed;
+      if (!gptAnswer) {
+        throw new Error(
+          'No response content from ChatGPT.\nResponse: ' +
+            JSON.stringify(chatRes),
+        );
+      }
+
+      const gptLog = await saveNewGptLog(
+        userId,
+        assignmentToolId,
+        'VOCAB_GENERATE',
+        JSON.stringify(gptAnswer),
+        JSON.stringify(chatRes.wholeprompt),
+        userAskTime,
+        Date.now(),
+        true,
+      );
+
+      await saveNewTraceData(
+        userId,
+        assignmentId || null,
+        stageId,
+        'VOCAB_GENERATE',
+        JSON.stringify({
+          answer: gptAnswer,
+        }),
+      );
+
+      return res.json(gptLog);
+    } catch (e) {
+      console.error(e);
+      return res.status(500).json({
+        error_message: 'ChatGPT error: ' + JSON.stringify(e),
+        error_code: 500,
+      });
+    }
+  } catch (e) {
+    return res.status(400).json({
+      error_message: (e as Error).message,
       error_code: 400,
     });
   }

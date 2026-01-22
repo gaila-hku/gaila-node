@@ -6,6 +6,7 @@ import {
   askIdeationGuidingAgent,
   askOutlineReviewAgent,
   askRevisionAgent,
+  generateVocab,
   getGptChatHistory,
   getGptRevisionExplanationByGptLog,
   getGptRevisionExplanationListing,
@@ -42,6 +43,7 @@ router.get(
   authorizeRole(),
   getGptRevisionExplanationListing,
 );
+router.post('/generate-vocab', authorizeRole(), generateVocab);
 
 router.get('/latest-structured', getLatestGptStructuredOutput);
 router.get('/listing-all-prompt', getGptAllUnstrcturedChatHistory);

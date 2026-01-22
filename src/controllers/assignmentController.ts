@@ -491,7 +491,6 @@ export const getAssignmentProgressDetails = async (
       stage.enabled &&
       !submissions.find(s => s.stage_id === stage.id && s.is_final),
   );
-  console.log(currentStage, stages);
   if (currentStage === -1) {
     currentStage = stages.findIndex(
       s => s.enabled && s.stage_type === 'revising',
