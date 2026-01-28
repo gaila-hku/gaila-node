@@ -54,7 +54,7 @@ export const fetchAssignmentsByTeacherId = async (
     `
     SELECT * FROM (
       SELECT
-        id, title, description, start_date, due_date, type, instructions, requirements, rubrics, tips, created_by,
+        id, title, description, start_date, due_date, type, instructions, requirements, rubrics, checklist, created_by,
         COUNT(DISTINCT student_id) as student_count,
         CAST(SUM(submitted) AS UNSIGNED) AS submitted_count,
         CAST(SUM(graded) AS UNSIGNED) AS graded_count,
@@ -274,7 +274,7 @@ export const saveNewAssignment = async (
   instructions: string,
   requirements: string,
   rubrics: string,
-  tips: string,
+  checklist: string,
   config: string,
   stages: AssignmentStageCreatePayload[],
   createdBy: number,
@@ -283,7 +283,7 @@ export const saveNewAssignment = async (
 ): Promise<Assignment | null> => {
   // 1. Save assignment
   const [insertRows] = await pool.query(
-    'INSERT INTO assignments (title, description, due_date, type, instructions, requirements, rubrics, tips, config, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO assignments (title, description, due_date, type, instructions, requirements, rubrics, checklist, config, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [
       title,
       description || null,
@@ -292,7 +292,7 @@ export const saveNewAssignment = async (
       instructions || null,
       requirements,
       rubrics || null,
-      tips || null,
+      checklist || null,
       config || null,
       createdBy,
     ],
@@ -380,7 +380,7 @@ export const updateExistingAssignment = async (
   instructions: string,
   requirements: string,
   rubrics: string,
-  tips: string,
+  checklist: string,
   config: string,
   stages: AssignmentStageCreatePayload[],
   newEnrolledClassIds: number[],
@@ -416,9 +416,9 @@ export const updateExistingAssignment = async (
     updateParams.push(rubrics);
     placeholders.push('rubrics = ?');
   }
-  if (tips) {
-    updateParams.push(tips);
-    placeholders.push('tips = ?');
+  if (checklist) {
+    updateParams.push(checklist);
+    placeholders.push('checklist = ?');
   }
   if (config) {
     updateParams.push(config);

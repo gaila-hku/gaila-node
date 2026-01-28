@@ -70,3 +70,12 @@ export interface StudentRevisionExplanationListingItem
     'id' | 'user_ask_time' | 'user_question' | 'gpt_answer' | 'is_structured'
   >;
 }
+
+export interface VocabGenerateItem {
+  text: string;
+  type: 'word' | 'phrase';
+}
+
+export interface VocabGenerateResult {
+  items: VocabGenerateItem[];
+}

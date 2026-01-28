@@ -8,15 +8,24 @@ export interface Assignment {
   instructions?: string;
   requirements?: number;
   rubrics?: string;
-  tips?: string;
+  checklist?: string;
   config?: string;
   created_by: number;
 }
 
+export type AssignmnentStageType =
+  | 'reading'
+  | 'goal_setting'
+  | 'language_preparation'
+  | 'outlining'
+  | 'drafting'
+  | 'revising'
+  | 'reflection';
+
 export interface AssignmentStage {
   id: number;
   assignment_id: number;
-  stage_type: string;
+  stage_type: AssignmnentStageType;
   order_index: number;
   enabled: boolean;
   config?: string;
@@ -98,11 +107,15 @@ export interface AssignmentGoal {
 
 export interface AssignmentReadingContent {
   annotations: {
+    id: number;
+    text: string;
+    note: string;
+    color: string;
     start_index: number;
     end_index: number;
-    type: 'highlight' | 'comment';
-    comment?: string;
+    text_index: number;
   }[];
+  model_text_generated?: boolean;
 }
 
 export interface AssignmentOutliningContent {

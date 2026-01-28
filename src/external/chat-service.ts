@@ -231,3 +231,40 @@ export const fetchVocabGenerationResponse = async (
 
   return res.json();
 };
+
+export const fetchDashboardbGenerationResponse = async (
+  rolePrompt: string,
+  taskDescription: string,
+  rubrics: string,
+  annotations: { text: string; color: string; note: string }[],
+  generatedVocabs: string[],
+  outline: string,
+  essayDraft: string,
+  essayDraftTitle: string,
+  revisedEssay: string,
+  revisedEssayTitle: string,
+  checklist: string[],
+  gptLogs: GptLog[],
+  config: ChatbotConfig | null,
+): Promise<GptResponse> => {
+  const formData = initFormData(config);
+  formData.append('chatgptRoleDescription', rolePrompt);
+  formData.append('taskDescription', taskDescription);
+  formData.append('rubrics', rubrics);
+  formData.append('annotations', JSON.stringify(annotations));
+  formData.append('generatedVocabs', JSON.stringify(generatedVocabs));
+  formData.append('outline', outline);
+  formData.append('essayDraft', essayDraft);
+  formData.append('essayDraftTitle', essayDraftTitle);
+  formData.append('revisedEssay', revisedEssay);
+  formData.append('revisedEssayTitle', revisedEssayTitle);
+  formData.append('checklist', JSON.stringify(checklist));
+  formData.append('gptLogs', JSON.stringify(gptLogs));
+
+  const res = await fetch(chatServiceUrl + '/generate-dashboard', {
+    method: 'POST',
+    body: formData,
+  });
+
+  return res.json();
+};
