@@ -298,60 +298,74 @@ export const fetchAgentUsageByAssignmentIdUserId = async (
 ): Promise<AgentUsageData> => {
   const [toolRows] = await pool.query(
     `
-      SELECT tool_key FROM assignment_tools
+      SELECT id, tool_key FROM assignment_tools
       WHERE assignment_id = ?
     `,
     [assignmentId, userId],
   );
-  const toolResult = toolRows as { tool_key: string }[];
-  const toolKeys = toolResult
-    .map(item => item.tool_key)
+  const toolResult = toolRows as { id: number; tool_key: string }[];
+
+  const [structuredRows] = await pool.query(
+    `
+      SELECT at.id as tool_id, COUNT(*) as count FROM gpt_logs log
+      INNER JOIN assignment_tools at ON log.assignment_tool_id = at.id AND at.assignment_id = ?
+      WHERE log.user_id = ? AND log.is_structured = 1
+      GROUP BY tool_id
+    `,
+    [assignmentId, userId],
+  );
+  const structuredResult = structuredRows as {
+    tool_id: number;
+    count: number;
+  }[];
+  const [unstructuredRows] = await pool.query(
+    `
+      SELECT at.id as tool_id, COUNT(*) as count FROM gpt_logs log
+      INNER JOIN assignment_tools at ON log.assignment_tool_id = at.id AND at.assignment_id = ?
+      WHERE log.user_id = ? AND log.is_structured = 0
+      GROUP BY tool_id
+    `,
+    [assignmentId, userId],
+  );
+  const unstructuredResult = unstructuredRows as {
+    tool_id: number;
+    count: number;
+  }[];
+
+  return toolResult
     .filter(
-      s =>
+      item =>
         ![
           'teacher_grading',
           'reading_general',
           'goal_general',
+          'vocab_generate',
           'language_general',
           'outlining_general',
           'drafting_general',
           'revising_general',
           'reflection_general',
-        ].includes(s),
-    );
-
-  const [structuredRows] = await pool.query(
-    `
-      SELECT tool_key as item_key, COUNT(*) as count FROM gpt_logs log
-      INNER JOIN assignment_tools at ON log.assignment_tool_id = at.id AND at.assignment_id = ?
-      WHERE log.user_id = ? AND log.is_structured = 1
-      GROUP BY tool_key
-    `,
-    [assignmentId, userId],
-  );
-  const structuredResult = structuredRows as {
-    item_key: string;
-    count: number;
-  }[];
-  const [unstructuredRows] = await pool.query(
-    `
-      SELECT tool_key as item_key, COUNT(*) as count FROM gpt_logs log
-      INNER JOIN assignment_tools at ON log.assignment_tool_id = at.id AND at.assignment_id = ?
-      WHERE log.user_id = ? AND log.is_structured = 0
-      GROUP BY tool_key
-    `,
-    [assignmentId, userId],
-  );
-  const unstructuredResult = unstructuredRows as {
-    item_key: string;
-    count: number;
-  }[];
-
-  return toolKeys.map(key => ({
-    agent_type: key,
-    agent_uses: structuredResult.find(i => i.item_key === key)?.count ?? 0,
-    prompts: unstructuredResult.find(i => i.item_key === key)?.count ?? 0,
-  }));
+          'reflection_dashboard_generate',
+        ].includes(item.tool_key),
+    )
+    .reduce((arr, tool) => {
+      const dataItemIndex = arr.findIndex(i => i.agent_type === tool.tool_key);
+      if (dataItemIndex === -1) {
+        arr.push({
+          agent_type: tool.tool_key,
+          agent_uses:
+            structuredResult.find(i => i.tool_id === tool.id)?.count ?? 0,
+          prompts:
+            unstructuredResult.find(i => i.tool_id === tool.id)?.count ?? 0,
+        });
+      } else {
+        arr[dataItemIndex].agent_uses +=
+          structuredResult.find(i => i.tool_id === tool.id)?.count ?? 0;
+        arr[dataItemIndex].prompts +=
+          unstructuredResult.find(i => i.tool_id === tool.id)?.count ?? 0;
+      }
+      return arr;
+    }, [] as AgentUsageData);
 };
 
 export const fetchGptUnstructuredLogListingByUserIdAssignmentId = async (
