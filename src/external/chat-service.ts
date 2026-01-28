@@ -22,6 +22,7 @@ const initFormData = (config?: ChatbotConfig | null) => {
 export const fetchChatResponse = async (
   question: string,
   rolePrompt: string,
+  outline: string,
   essay: string,
   rubrics: string,
   pastMessages: GptLog[],
@@ -32,6 +33,7 @@ export const fetchChatResponse = async (
   formData.append('userQuestions', question);
   formData.append('chatgptRoleDescription', rolePrompt);
   formData.append('taskDescription', taskDescription);
+  formData.append('outline', outline);
   formData.append('essay', essay);
   formData.append('rubrics', rubrics);
   formData.append('past_messages', JSON.stringify(pastMessages));
@@ -100,6 +102,8 @@ export const fetchOutlineReviewAgentResponse = async (
 
 export const fetchDictionaryAgentResponse = async (
   question: string,
+  outline: string,
+  essay: string,
   rolePrompt: string,
   pastMessages: GptLog[],
   is_structured: boolean,
@@ -107,6 +111,8 @@ export const fetchDictionaryAgentResponse = async (
 ): Promise<GptResponse> => {
   const formData = initFormData(config);
   formData.append('userQuestions', question);
+  formData.append('outline', outline);
+  formData.append('essay', essay);
   formData.append('chatgptRoleDescription', rolePrompt);
   formData.append('past_messages', JSON.stringify(pastMessages));
   formData.append('is_structured', is_structured ? '1' : '0');
@@ -121,6 +127,7 @@ export const fetchDictionaryAgentResponse = async (
 export const fetchGrammarAgentResponse = async (
   question: string,
   rolePrompt: string,
+  outline: string,
   essay: string,
   pastMessages: GptLog[],
   is_structured: boolean,
@@ -129,6 +136,7 @@ export const fetchGrammarAgentResponse = async (
   const formData = initFormData(config);
   formData.append('userQuestions', question);
   formData.append('chatgptRoleDescription', rolePrompt);
+  formData.append('outline', outline);
   formData.append('essay', essay);
   formData.append('past_messages', JSON.stringify(pastMessages));
   formData.append('is_structured', is_structured ? '1' : '0');
@@ -144,6 +152,7 @@ export const fetchGrammarAgentResponse = async (
 export const fetchAutogradeAgentResponse = async (
   question: string,
   rolePrompt: string,
+  outline: string,
   essay: string,
   rubrics: string,
   pastMessages: GptLog[],
@@ -155,6 +164,7 @@ export const fetchAutogradeAgentResponse = async (
   formData.append('userQuestions', question);
   formData.append('chatgptRoleDescription', rolePrompt);
   formData.append('taskDescription', taskDescription);
+  formData.append('outline', outline);
   formData.append('essay', essay);
   formData.append('rubrics', rubrics);
   formData.append('past_messages', JSON.stringify(pastMessages));
@@ -171,6 +181,7 @@ export const fetchAutogradeAgentResponse = async (
 export const fetchRevisionAgentResponse = async (
   question: string,
   rolePrompt: string,
+  outline: string,
   essay: string,
   rubrics: string,
   pastMessages: GptLog[],
@@ -182,6 +193,7 @@ export const fetchRevisionAgentResponse = async (
   formData.append('userQuestions', question);
   formData.append('chatgptRoleDescription', rolePrompt);
   formData.append('taskDescription', taskDescription);
+  formData.append('outline', outline);
   formData.append('essay', essay);
   formData.append('rubrics', rubrics);
   formData.append('past_messages', JSON.stringify(pastMessages));

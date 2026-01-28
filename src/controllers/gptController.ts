@@ -18,7 +18,11 @@ import {
   fetchRubricsByAssignmentId,
 } from 'models/assignmentModel';
 import { fetchAssignmentStagesWithToolsByAssignmentId } from 'models/assignmentStageModel';
-import { fetchLatestSubmissionByStageIdStudentId } from 'models/assignmentSubmissionModel';
+import {
+  fetchLatestEssaySubmissionByAssignmentIdStudentId,
+  fetchLatestOutlineSubmissionByAssignmentIdStudentId,
+  fetchLatestSubmissionByStageIdStudentId,
+} from 'models/assignmentSubmissionModel';
 import {
   fetchAssignmentToolByAssignmentToolId,
   fetchToolSettingsByAssignmentToolId,
@@ -124,40 +128,35 @@ const prepareGptRequest = async (
 
 const prepareSubmissionContent = async (
   req: AuthorizedRequest,
-  stageId: number | undefined,
+  assignmentId: number | undefined,
   config?: { essayOnly?: boolean; outlineOnly?: boolean },
 ) => {
   if (req.user?.role !== 'student') {
-    return '';
+    return { outline: '', essay: '' };
   }
-  if (req.body.essay) {
-    return req.body.essay;
+  if (!assignmentId) {
+    throw new Error('Essay and assignment ID not given');
   }
-  if (!stageId) {
-    throw new Error('Essay not given and assignment stage not found');
+  let outline: string = req.body.outline || '';
+  let essay: string = req.body.essay || '';
+  if (!config?.essayOnly && !outline) {
+    const latestOutlineSubmission =
+      await fetchLatestOutlineSubmissionByAssignmentIdStudentId(
+        assignmentId,
+        req.user.id,
+      );
+    outline = (latestOutlineSubmission?.content as AssignmentOutliningContent)
+      .outline;
   }
-  const latestEssaySubmission = await fetchLatestSubmissionByStageIdStudentId(
-    stageId,
-    req.user.id,
-  );
-  const submissionContent = latestEssaySubmission?.content;
-  if (!submissionContent) {
-    return '';
+  if (!config?.outlineOnly && !essay) {
+    const latestEssaySubmission =
+      await fetchLatestEssaySubmissionByAssignmentIdStudentId(
+        assignmentId,
+        req.user.id,
+      );
+    essay = (latestEssaySubmission?.content as AssignmentRevisingContent).essay;
   }
-  if (config?.outlineOnly) {
-    if ('outline' in submissionContent) {
-      return submissionContent.outline;
-    }
-    return '';
-  }
-  if (config?.essayOnly) {
-    if ('essay' in submissionContent) {
-      return submissionContent.essay;
-    }
-    return '';
-  }
-
-  return JSON.stringify(submissionContent);
+  return { outline, essay };
 };
 
 const pendingCategoryLogs: GptLog[] = [];
@@ -224,7 +223,10 @@ export const askGptModel = async (req: AuthorizedRequest, res: Response) => {
       config,
     } = await prepareGptRequest(req);
 
-    const submissionContent = await prepareSubmissionContent(req, stageId);
+    const { outline, essay } = await prepareSubmissionContent(
+      req,
+      assignmentId,
+    );
 
     let rubrics: string | null = null;
     if (assignmentId) {
@@ -236,7 +238,8 @@ export const askGptModel = async (req: AuthorizedRequest, res: Response) => {
       const chatRes = await fetchChatResponse(
         question,
         rolePrompt,
-        submissionContent || '',
+        outline || '',
+        essay || '',
         JSON.stringify(rubrics || ''),
         pastMessages,
         taskDescription || '',
@@ -322,7 +325,7 @@ export const askIdeationGuidingAgent = async (
       throw new Error('Invalid assignment ID');
     }
 
-    const outline = await prepareSubmissionContent(req, stageId, {
+    const { outline } = await prepareSubmissionContent(req, assignmentId, {
       outlineOnly: true,
     });
     const rubrics = await fetchRubricsByAssignmentId(assignmentId);
@@ -427,7 +430,7 @@ export const askOutlineReviewAgent = async (
       throw new Error('Invalid assignment ID');
     }
 
-    const outline = await prepareSubmissionContent(req, stageId, {
+    const { outline } = await prepareSubmissionContent(req, assignmentId, {
       outlineOnly: true,
     });
     const rubrics = await fetchRubricsByAssignmentId(assignmentId);
@@ -528,10 +531,22 @@ export const askDictionaryAgent = async (
       throw new Error('Invalid assignment stage ID');
     }
 
+    let outline = '';
+    let essay = '';
+    if (!isStructured) {
+      const contents = await prepareSubmissionContent(req, assignmentId, {
+        outlineOnly: true,
+      });
+      outline = contents.outline;
+      essay = contents.essay;
+    }
+
     try {
       const userAskTime = Date.now();
       const chatRes = await fetchDictionaryAgentResponse(
         question,
+        outline,
+        essay,
         rolePrompt,
         pastMessages,
         isStructured,
@@ -615,14 +630,18 @@ export const askGrammarAgent = async (
       throw new Error('Invalid assignment stage ID');
     }
 
-    const submissionContent = await prepareSubmissionContent(req, stageId);
+    const { outline, essay } = await prepareSubmissionContent(
+      req,
+      assignmentId,
+    );
 
     try {
       const userAskTime = Date.now();
       const chatRes = await fetchGrammarAgentResponse(
         question,
         rolePrompt,
-        submissionContent,
+        outline,
+        essay,
         pastMessages,
         isStructured,
         config,
@@ -707,9 +726,11 @@ export const askAutogradeAgent = async (
       throw new Error('Invalid assignment stage ID');
     }
 
-    const essay = await prepareSubmissionContent(req, stageId, {
-      essayOnly: true,
-    });
+    const { outline, essay } = await prepareSubmissionContent(
+      req,
+      assignmentId,
+      { essayOnly: isStructured },
+    );
 
     if (!assignmentId) {
       throw new Error('Invalid assignment ID');
@@ -726,6 +747,7 @@ export const askAutogradeAgent = async (
       const chatRes = await fetchAutogradeAgentResponse(
         question,
         rolePrompt,
+        outline,
         essay,
         JSON.stringify(rubrics),
         pastMessages,
@@ -811,9 +833,11 @@ export const askRevisionAgent = async (
       throw new Error('Invalid assignment stage ID');
     }
 
-    const essay = await prepareSubmissionContent(req, stageId, {
-      essayOnly: true,
-    });
+    const { outline, essay } = await prepareSubmissionContent(
+      req,
+      assignmentId,
+      { essayOnly: isStructured },
+    );
 
     if (!assignmentId) {
       throw new Error('Invalid assignment ID');
@@ -830,6 +854,7 @@ export const askRevisionAgent = async (
       const chatRes = await fetchRevisionAgentResponse(
         question,
         rolePrompt,
+        outline,
         essay,
         JSON.stringify(rubrics),
         pastMessages,
