@@ -8,7 +8,11 @@ import {
   AssignmentStageCreatePayload,
   AssignmentTeacherListingItem,
 } from 'types/assignment';
-import { Assignment, AssignmentStage } from 'types/db/assignment';
+import {
+  Assignment,
+  AssignmentStage,
+  AssignmentTool,
+} from 'types/db/assignment';
 
 type AssignmentFilterType = {
   search?: string;
@@ -549,6 +553,38 @@ export const updateExistingAssignment = async (
           stageId,
           tool.key,
           tool.enabled,
+        );
+      }
+    }
+
+    if (stage.stage_type === 'language_preparation') {
+      const [vocabGenerateToolRows] = await pool.query(
+        'SELECT * FROM assignment_tools WHERE assignment_id = ? AND assignment_stage_id = ? AND tool_key = ?',
+        [assignmentId, stageId, VOCAB_GENERATE_TOOL_KEY],
+      );
+      const vocabGenerateTools = vocabGenerateToolRows as AssignmentTool[];
+      if (!vocabGenerateTools[0]) {
+        await saveNewAssignmentTool(
+          assignmentId,
+          stageId,
+          VOCAB_GENERATE_TOOL_KEY,
+          true,
+        );
+      }
+    }
+
+    if (stage.stage_type === 'reflection') {
+      const [dashboardToolRows] = await pool.query(
+        'SELECT * FROM assignment_tools WHERE assignment_id = ? AND assignment_stage_id = ? AND tool_key = ?',
+        [assignmentId, stageId, DASHBOARD_GENERATE_TOOL_KEY],
+      );
+      const reflectionTools = dashboardToolRows as AssignmentTool[];
+      if (!reflectionTools[0]) {
+        await saveNewAssignmentTool(
+          assignmentId,
+          stageId,
+          DASHBOARD_GENERATE_TOOL_KEY,
+          true,
         );
       }
     }
