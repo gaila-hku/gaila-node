@@ -19,13 +19,18 @@ const initFormData = (config?: ChatbotConfig | null) => {
   return formData;
 };
 
+type PastMessage = {
+  question: string;
+  gpt_answer: string;
+};
+
 export const fetchChatResponse = async (
   question: string,
   rolePrompt: string,
   outline: string,
   essay: string,
   rubrics: string,
-  pastMessages: GptLog[],
+  pastMessages: PastMessage[],
   taskDescription: string,
   config: ChatbotConfig | null,
 ): Promise<GptResponse> => {
@@ -50,7 +55,7 @@ export const fetchIdeationGuidingAgentResponse = async (
   question: string,
   outline: string,
   rolePrompt: string,
-  pastMessages: GptLog[],
+  pastMessages: PastMessage[],
   rubrics: string,
   taskDescription: string,
   is_structured: boolean,
@@ -77,7 +82,7 @@ export const fetchOutlineReviewAgentResponse = async (
   question: string,
   outline: string,
   rolePrompt: string,
-  pastMessages: GptLog[],
+  pastMessages: PastMessage[],
   rubrics: string,
   taskDescription: string,
   is_structured: boolean,
@@ -105,7 +110,7 @@ export const fetchDictionaryAgentResponse = async (
   outline: string,
   essay: string,
   rolePrompt: string,
-  pastMessages: GptLog[],
+  pastMessages: PastMessage[],
   is_structured: boolean,
   config: ChatbotConfig | null,
 ): Promise<GptResponse> => {
@@ -129,7 +134,7 @@ export const fetchGrammarAgentResponse = async (
   rolePrompt: string,
   outline: string,
   essay: string,
-  pastMessages: GptLog[],
+  pastMessages: PastMessage[],
   is_structured: boolean,
   config: ChatbotConfig | null,
 ): Promise<GptResponse> => {
@@ -155,7 +160,7 @@ export const fetchAutogradeAgentResponse = async (
   outline: string,
   essay: string,
   rubrics: string,
-  pastMessages: GptLog[],
+  pastMessages: PastMessage[],
   taskDescription: string,
   is_structured: boolean,
   config: ChatbotConfig | null,
@@ -184,7 +189,7 @@ export const fetchRevisionAgentResponse = async (
   outline: string,
   essay: string,
   rubrics: string,
-  pastMessages: GptLog[],
+  pastMessages: PastMessage[],
   taskDescription: string,
   is_structured: boolean,
   config: ChatbotConfig | null,

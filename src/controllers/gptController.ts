@@ -108,9 +108,25 @@ const prepareGptRequest = async (
       (await fetchAssignmentDescriptionById(assignmentId)) || '';
   }
 
-  const pastMessages = isStructured
+  const pastMessageLogs = isStructured
     ? []
     : await fetchLatestGptLogByUserIdToolId(req.user.id, assignmentToolId, 5);
+
+  if (!pastMessageLogs.some(log => log.is_structured)) {
+    const latestStructured = await fetchLatestStructuredGptLogsByUserIdToolId(
+      req.user.id,
+      assignmentToolId,
+    );
+    if (latestStructured) {
+      pastMessageLogs.push(latestStructured);
+    }
+  }
+
+  pastMessageLogs.sort((a, b) => a.user_ask_time - b.user_ask_time);
+  const pastMessages = pastMessageLogs.map(log => ({
+    question: log.user_question,
+    gpt_answer: log.gpt_answer,
+  }));
 
   return {
     userId: req.user.id,
