@@ -315,7 +315,7 @@ export const createAssignment = async (
     requirements,
     due_date: dueDate,
     rubrics,
-    tips,
+    checklist,
     config,
     stages,
     enrolled_class_ids: enrolledClassIds,
@@ -333,7 +333,7 @@ export const createAssignment = async (
       instructions,
       JSON.stringify(requirements),
       JSON.stringify(rubrics),
-      JSON.stringify(tips),
+      JSON.stringify(checklist),
       JSON.stringify(config),
       stages,
       req.user.id,
@@ -391,7 +391,7 @@ export const updateAssignment = async (
     requirements,
     due_date: dueDate,
     rubrics,
-    tips,
+    checklist,
     config,
     stages,
     enrolled_class_ids: enrolledClassIds,
@@ -416,7 +416,7 @@ export const updateAssignment = async (
       instructions,
       JSON.stringify(requirements),
       JSON.stringify(rubrics),
-      JSON.stringify(tips),
+      JSON.stringify(checklist),
       JSON.stringify(config),
       stages,
       enrolledClassIds,
@@ -491,7 +491,6 @@ export const getAssignmentProgressDetails = async (
       stage.enabled &&
       !submissions.find(s => s.stage_id === stage.id && s.is_final),
   );
-  console.log(currentStage, stages);
   if (currentStage === -1) {
     currentStage = stages.findIndex(
       s => s.enabled && s.stage_type === 'revising',

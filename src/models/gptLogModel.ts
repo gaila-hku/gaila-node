@@ -27,6 +27,18 @@ export const fetchLatestGptLogByUserIdToolId = async (
   return rows as GptLog[];
 };
 
+export const fetchGptLogsByAssignmentId = async (
+  assignmentId: number,
+): Promise<GptLog[]> => {
+  const [rows] = await pool.query(
+    `SELECT * FROM gpt_logs
+    INNER JOIN assignment_tools ast ON gpt_logs.assignment_tool_id = ast.id
+    WHERE ast.assignment_id = ?`,
+    [assignmentId],
+  );
+  return rows as GptLog[];
+};
+
 export const saveNewGptLog = async (
   user_id: number,
   assignment_tool_id: number,
@@ -110,6 +122,17 @@ export const fetchLatestStructuredGptLogsByUserIdToolId = async (
   );
   const result = rows as GptLog[];
   return result.length > 0 ? result[0] : null;
+};
+
+export const fetchStructuredGptLogsByUserIdToolId = async (
+  userId: number,
+  assignmentToolId: number,
+): Promise<GptLog[]> => {
+  const [rows] = await pool.query(
+    `SELECT * FROM gpt_logs WHERE user_id = ? AND assignment_tool_id = ? AND is_structured = 1 ORDER BY user_ask_time`,
+    [userId, assignmentToolId],
+  );
+  return rows as GptLog[];
 };
 
 export const fetchLatestLogByUserIdAssignmentId = async (

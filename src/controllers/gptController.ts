@@ -2,24 +2,29 @@ import { Response } from 'express';
 import {
   fetchAutogradeAgentResponse,
   fetchChatResponse,
+  fetchDashboardbGenerationResponse,
   fetchDictionaryAgentResponse,
   fetchGrammarAgentResponse,
   fetchIdeationGuidingAgentResponse,
   fetchOutlineReviewAgentResponse,
   fetchPromptClassificationResponse,
   fetchRevisionAgentResponse,
+  fetchVocabGenerationResponse,
 } from 'external/chat-service';
 import { isArray, isNil, isNumber } from 'lodash-es';
 import {
+  fetchAssignmentById,
   fetchAssignmentDescriptionById,
   fetchRubricsByAssignmentId,
 } from 'models/assignmentModel';
+import { fetchAssignmentStagesWithToolsByAssignmentId } from 'models/assignmentStageModel';
 import { fetchLatestSubmissionByStageIdStudentId } from 'models/assignmentSubmissionModel';
 import {
   fetchAssignmentToolByAssignmentToolId,
   fetchToolSettingsByAssignmentToolId,
 } from 'models/assignmentToolModel';
 import {
+  fetchGptLogsByAssignmentId,
   fetchGptUnstructuredLogCountByUserIdAssignmentId,
   fetchGptUnstructuredLogListingByUserIdAssignmentId,
   fetchGptUnstructuredLogsByUserIdToolId,
@@ -35,12 +40,23 @@ import {
 } from 'models/gptLogModel';
 import { saveNewTraceData } from 'models/traceDataModel';
 
+import {
+  AssignmentDraftingContent,
+  AssignmentOutliningContent,
+  AssignmentReadingContent,
+  AssignmentRevisingContent,
+} from 'types/db/assignment';
 import { GptLog } from 'types/db/gpt';
-import { StudentRevisionExplanationListingItem } from 'types/external/gpt';
+import {
+  StudentRevisionExplanationListingItem,
+  VocabGenerateResult,
+} from 'types/external/gpt';
 import { AuthorizedRequest } from 'types/request';
 import parseListingQuery from 'utils/parseListingQuery';
 import parseQueryNumber from 'utils/parseQueryNumber';
 import safeJsonParse from 'utils/safeJsonParse';
+
+import { fetchStructuredGptLogsByUserIdToolId } from './../models/gptLogModel';
 
 // TODO: also prepare image
 const prepareGptRequest = async (
@@ -124,10 +140,7 @@ const prepareSubmissionContent = async (
     stageId,
     req.user.id,
   );
-  if (!latestEssaySubmission) {
-    throw new Error('Essay not given and assignment submission not found');
-  }
-  const submissionContent = latestEssaySubmission.content;
+  const submissionContent = latestEssaySubmission?.content;
   if (!submissionContent) {
     return '';
   }
@@ -1190,6 +1203,259 @@ export const getGptRevisionExplanationListing = async (
   } catch (e) {
     return res.status(400).json({
       error_message: 'Invalid query parameters: ' + (e as Error).message,
+      error_code: 400,
+    });
+  }
+};
+
+export const generateVocab = async (req: AuthorizedRequest, res: Response) => {
+  try {
+    const {
+      userId,
+      rolePrompt,
+      assignmentId,
+      assignmentToolId,
+      stageId,
+      taskDescription,
+      config,
+    } = await prepareGptRequest(req);
+
+    if (!assignmentId) {
+      throw new Error('Invalid assignment ID');
+    }
+
+    if (!stageId) {
+      throw new Error('Invalid assignment stage ID');
+    }
+
+    const rubrics = (await fetchRubricsByAssignmentId(assignmentId)) || '';
+
+    try {
+      const userAskTime = Date.now();
+      const chatRes = await fetchVocabGenerationResponse(
+        rolePrompt,
+        JSON.stringify(rubrics),
+        taskDescription || '',
+        config,
+      );
+
+      if (!chatRes.response.choices[0]) {
+        throw new Error('Invalid response from ChatGPT');
+      }
+      const gptAnswer = chatRes.response.choices[0].message.parsed;
+      if (!gptAnswer) {
+        throw new Error(
+          'No response content from ChatGPT.\nResponse: ' +
+            JSON.stringify(chatRes),
+        );
+      }
+
+      const gptLog = await saveNewGptLog(
+        userId,
+        assignmentToolId,
+        'VOCAB_GENERATE',
+        JSON.stringify(gptAnswer),
+        JSON.stringify(chatRes.wholeprompt),
+        userAskTime,
+        Date.now(),
+        true,
+      );
+
+      await saveNewTraceData(
+        userId,
+        assignmentId || null,
+        stageId,
+        'VOCAB_GENERATE',
+        JSON.stringify({
+          answer: gptAnswer,
+        }),
+      );
+
+      return res.json(gptLog);
+    } catch (e) {
+      console.error(e);
+      return res.status(500).json({
+        error_message: 'ChatGPT error: ' + JSON.stringify(e),
+        error_code: 500,
+      });
+    }
+  } catch (e) {
+    return res.status(400).json({
+      error_message: (e as Error).message,
+      error_code: 400,
+    });
+  }
+};
+
+export const generateDashboard = async (
+  req: AuthorizedRequest,
+  res: Response,
+) => {
+  try {
+    const {
+      userId,
+      rolePrompt,
+      assignmentId,
+      assignmentToolId,
+      stageId,
+      taskDescription,
+      config,
+    } = await prepareGptRequest(req, { questionUnstructuredOnly: true });
+
+    const assignment = await fetchAssignmentById(assignmentId || 0);
+
+    if (!assignmentId || !assignment) {
+      throw new Error('Invalid assignment ID');
+    }
+
+    if (!stageId) {
+      throw new Error('Invalid assignment stage ID');
+    }
+
+    const rubrics = (await fetchRubricsByAssignmentId(assignmentId)) || '';
+
+    const assignmentStages =
+      await fetchAssignmentStagesWithToolsByAssignmentId(assignmentId);
+
+    const readingStage = assignmentStages.find(s => s.stage_type === 'reading');
+    let annotations: { text: string; color: string; note: string }[] = [];
+    if (readingStage) {
+      const latestReadingSubmission = (
+        await fetchLatestSubmissionByStageIdStudentId(readingStage.id, userId)
+      )?.content as AssignmentReadingContent;
+      const latestAnnotations = latestReadingSubmission?.annotations || [];
+      annotations = latestAnnotations.map(a => ({
+        text: a.text,
+        color: a.color,
+        note: a.note,
+      }));
+    }
+
+    const languageStage = assignmentStages.find(
+      s => s.stage_type === 'language_preparation',
+    );
+    let generatedVocabs: string[] = [];
+    if (languageStage) {
+      const generateLogs = await fetchStructuredGptLogsByUserIdToolId(
+        userId,
+        languageStage.id,
+      );
+      generatedVocabs = generateLogs.flatMap(log =>
+        (JSON.parse(log.gpt_answer) as VocabGenerateResult).items.map(
+          item => item.text,
+        ),
+      );
+    }
+
+    const outlineStage = assignmentStages.find(
+      s => s.stage_type === 'outlining',
+    );
+    let outline = '';
+    if (outlineStage) {
+      const outlineSubmission = (
+        await fetchLatestSubmissionByStageIdStudentId(outlineStage.id, userId)
+      )?.content as AssignmentOutliningContent;
+      outline = outlineSubmission?.outline || '';
+    }
+
+    const draftingStage = assignmentStages.find(
+      s => s.stage_type === 'drafting',
+    );
+    let essayDraft = '';
+    let essayDraftTitle = '';
+    if (draftingStage) {
+      const draftingSubmission = (
+        await fetchLatestSubmissionByStageIdStudentId(draftingStage.id, userId)
+      )?.content as AssignmentDraftingContent;
+      essayDraft = draftingSubmission?.essay || '';
+      essayDraftTitle = draftingSubmission?.title || '';
+    }
+
+    const revisingStage = assignmentStages.find(
+      s => s.stage_type === 'revising',
+    );
+    let revisedEssay = '';
+    let revisedEssayTitle = '';
+    if (revisingStage) {
+      const revisingSubmission = (
+        await fetchLatestSubmissionByStageIdStudentId(revisingStage.id, userId)
+      )?.content as AssignmentRevisingContent;
+      revisedEssay = revisingSubmission?.essay || '';
+      revisedEssayTitle = revisingSubmission?.title || '';
+    }
+
+    const checklist = JSON.parse(assignment.checklist || '[]') || [];
+
+    const gptLogs = await fetchGptLogsByAssignmentId(assignmentId);
+
+    try {
+      const userAskTime = Date.now();
+      const chatRes = await fetchDashboardbGenerationResponse(
+        rolePrompt,
+        taskDescription || '',
+        JSON.stringify(rubrics),
+        annotations,
+        generatedVocabs,
+        outline,
+        essayDraft,
+        essayDraftTitle,
+        revisedEssay,
+        revisedEssayTitle,
+        checklist,
+        gptLogs,
+        config,
+      );
+
+      if (!chatRes.response.choices[0]) {
+        throw new Error('Invalid response from ChatGPT');
+      }
+      const gptAnswer = chatRes.response.choices[0].message.parsed;
+      if (!gptAnswer) {
+        throw new Error(
+          'No response content from ChatGPT.\nResponse: ' +
+            JSON.stringify(chatRes),
+        );
+      }
+
+      const gptLog = await saveNewGptLog(
+        userId,
+        assignmentToolId,
+        'DASHBOARD_GENERATE',
+        JSON.stringify(gptAnswer),
+        JSON.stringify(chatRes.wholeprompt),
+        userAskTime,
+        Date.now(),
+        true,
+      );
+
+      await saveNewTraceData(
+        userId,
+        assignmentId || null,
+        stageId,
+        'DASHBOARD_GENERATE',
+        JSON.stringify({
+          answer: gptAnswer,
+        }),
+      );
+
+      return res.json({
+        usage_data: {
+          annotations,
+          generatedVocabs,
+          checklist,
+        },
+        gpt_log: gptLog,
+      });
+    } catch (e) {
+      console.error(e);
+      return res.status(500).json({
+        error_message: 'ChatGPT error: ' + JSON.stringify(e),
+        error_code: 500,
+      });
+    }
+  } catch (e) {
+    return res.status(400).json({
+      error_message: (e as Error).message,
       error_code: 400,
     });
   }

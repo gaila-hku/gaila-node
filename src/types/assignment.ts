@@ -4,6 +4,7 @@ import {
   AssignmentReadingContent,
   AssignmentReflectionContent,
   AssignmentWritingContent,
+  AssignmnentStageType,
 } from 'types/db/assignment';
 import { Class } from 'types/db/class';
 import { User } from 'types/db/user';
@@ -21,7 +22,7 @@ export interface AssignmentView extends Assignment {
 }
 
 export interface AssignmentStageCreatePayload {
-  stage_type: string;
+  stage_type: AssignmnentStageType;
   enabled: boolean;
   tools: { key: string; enabled: boolean }[];
   config?: string;
@@ -30,7 +31,7 @@ export interface AssignmentStageCreatePayload {
 export interface AssignmentStageWithTools {
   id: number;
   assignment_id: number;
-  stage_type: string;
+  stage_type: AssignmnentStageType;
   order_index: number;
   enabled: boolean;
   tools: { id: number; key: string; enabled: boolean }[];
@@ -64,7 +65,7 @@ export interface AssignmentSubmissionListingItem {
   submitted_at: number | null;
   is_final: boolean | null;
   stage_id: number;
-  stage_type: string;
+  stage_type: AssignmnentStageType;
   student_id: number;
   username: string;
   first_name: string | null;
@@ -77,7 +78,7 @@ export interface AssignmentSubmissionListingItemResponse {
   submissions: {
     id: number;
     stage_id: number;
-    stage_type: string;
+    stage_type: AssignmnentStageType;
     submitted_at: number | null;
     is_final: boolean | null;
     score: number | null;
@@ -113,7 +114,7 @@ export interface AssignmentSubmissionDetail {
   config?: string;
 
   stage_id: number;
-  stage_type: string;
+  stage_type: AssignmnentStageType;
   order_index: number;
 
   student_id: number;
