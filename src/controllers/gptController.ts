@@ -110,7 +110,7 @@ const prepareGptRequest = async (
 
   const pastMessageLogs = isStructured
     ? []
-    : await fetchLatestGptLogByUserIdToolId(req.user.id, assignmentToolId, 5);
+    : await fetchLatestGptLogByUserIdToolId(req.user.id, assignmentToolId, 10);
 
   if (!pastMessageLogs.some(log => log.is_structured)) {
     const latestStructured = await fetchLatestStructuredGptLogsByUserIdToolId(
