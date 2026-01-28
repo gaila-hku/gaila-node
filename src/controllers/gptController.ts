@@ -1218,7 +1218,7 @@ export const generateVocab = async (req: AuthorizedRequest, res: Response) => {
       stageId,
       taskDescription,
       config,
-    } = await prepareGptRequest(req);
+    } = await prepareGptRequest(req, { questionUnstructuredOnly: true });
 
     if (!assignmentId) {
       throw new Error('Invalid assignment ID');
