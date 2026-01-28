@@ -26,7 +26,11 @@ import {
 import { fetchPasteTextLogsByUserIdAssignmentId } from 'models/traceDataModel';
 import { fetchUsersByIds } from 'models/userModel';
 
-import { AssignmentOption, AssignmentView } from 'types/assignment';
+import {
+  AssignmentCreatePayload,
+  AssignmentOption,
+  AssignmentView,
+} from 'types/assignment';
 import { ClassOption } from 'types/class';
 import { Assignment, AssignmentWritingContent } from 'types/db/assignment';
 import { Class } from 'types/db/class';
@@ -181,7 +185,7 @@ export const getAssignmentDetails = async (
 };
 
 const assignmentValidation = async (
-  assignment: any,
+  assignment: AssignmentCreatePayload,
 ): Promise<[Class[], User[]]> => {
   const {
     title,
@@ -239,11 +243,22 @@ const assignmentValidation = async (
     }
     if (
       stage.stage_type === 'reading' &&
-      (!isArray(stage.config?.readings) || stage.config?.readings.length === 0)
+      (!isArray((stage.config as any)?.readings) ||
+        (stage.config as any)?.readings.length === 0)
     ) {
       throw new Error('Reading stage must have at least one reading');
     }
-    if (stage.stage_type === 'outline') {
+    if (
+      stage.stage_type === 'language_preparation' &&
+      (!isArray((stage.config as any)?.readings) ||
+        (stage.config as any)?.readings.length === 0) &&
+      !(stage.config as any)?.vocabulary_enabled
+    ) {
+      throw new Error(
+        'Language Preparation stage must have at least one reading, or generation enabled',
+      );
+    }
+    if (stage.stage_type === 'outlining') {
       outlineIndex = i;
       if (outlineIndex > draftingIndex && draftingIndex !== -1) {
         throw new Error('Outline stage cannot come after Drafting stage');

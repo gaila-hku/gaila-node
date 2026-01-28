@@ -3,6 +3,7 @@ import {
   AssignmentGoalContent,
   AssignmentReadingContent,
   AssignmentReflectionContent,
+  AssignmentStage,
   AssignmentWritingContent,
   AssignmnentStageType,
 } from 'types/db/assignment';
@@ -19,6 +20,31 @@ export interface AssignmentTeacherListingItem extends Assignment {
 export interface AssignmentView extends Assignment {
   enrolled_classes: Class[];
   enrolled_students: User[];
+}
+
+export interface RubricItem {
+  criteria: string;
+  description: string;
+  max_points: number;
+}
+
+export interface AssignmentCreatePayload {
+  title: string;
+  description?: string;
+  due_date?: number | null;
+  type?: string;
+  instructions?: string;
+  requirements?: {
+    min_word_count?: number | null;
+    max_word_count?: number | null;
+  };
+  rubrics?: RubricItem[];
+  checklist?: string[];
+  enrolled_class_ids?: number[];
+  enrolled_student_ids?: number[];
+  stages: (Omit<AssignmentStage, 'id' | 'order_index' | 'tools'> & {
+    tools: { key: string; enabled: boolean }[];
+  })[];
 }
 
 export interface AssignmentStageCreatePayload {
