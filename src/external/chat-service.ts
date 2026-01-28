@@ -19,10 +19,7 @@ const initFormData = (config?: ChatbotConfig | null) => {
   return formData;
 };
 
-type PastMessage = {
-  question: string;
-  gpt_answer: string;
-};
+type PastMessage = Pick<GptLog, 'user_question' | 'gpt_answer'>;
 
 export const fetchChatResponse = async (
   question: string,

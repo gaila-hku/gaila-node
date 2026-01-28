@@ -124,7 +124,7 @@ const prepareGptRequest = async (
 
   pastMessageLogs.sort((a, b) => a.user_ask_time - b.user_ask_time);
   const pastMessages = pastMessageLogs.map(log => ({
-    question: log.user_question,
+    user_question: log.user_question,
     gpt_answer: log.gpt_answer,
   }));
 
