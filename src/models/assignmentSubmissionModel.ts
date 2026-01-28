@@ -365,6 +365,35 @@ export const fetchSubmissionsByAssignmentIdAndStudentId = async (
   return rows as AssignmentSubmissionDetail[];
 };
 
+export const fetchLatestOutlineSubmissionByAssignmentIdStudentId = async (
+  assignmentId: number,
+  studentId: number,
+): Promise<AssignmentSubmission | null> => {
+  const [rows] = await pool.query(
+    `
+    SELECT s.*
+    FROM assignment_submissions s
+    INNER JOIN (
+      SELECT stage_id, max(submitted_at) as max_submitted_at
+      FROM assignment_submissions
+      WHERE assignment_id = ? AND student_id = ?
+      GROUP BY stage_id
+    ) latest_submissions
+      ON latest_submissions.stage_id = s.stage_id
+      AND latest_submissions.max_submitted_at = s.submitted_at
+    INNER JOIN (
+      SELECT id as stage_id
+      FROM assignment_stages
+      WHERE stage_type = 'outlining'
+    ) stages on stages.stage_id = s.stage_id
+    ORDER BY s.submitted_at DESC LIMIT 1
+    `,
+    [assignmentId, studentId],
+  );
+  const result = rows as AssignmentSubmission[];
+  return result.length > 0 ? result[0] : null;
+};
+
 export const fetchLatestEssaySubmissionByAssignmentIdStudentId = async (
   assignmentId: number,
   studentId: number,
@@ -386,6 +415,7 @@ export const fetchLatestEssaySubmissionByAssignmentIdStudentId = async (
       FROM assignment_stages
       WHERE stage_type = 'drafting' OR stage_type = 'revising'
     ) stages on stages.stage_id = s.stage_id
+    ORDER BY s.submitted_at DESC LIMIT 1
     `,
     [assignmentId, studentId],
   );

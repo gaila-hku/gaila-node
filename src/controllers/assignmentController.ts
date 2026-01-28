@@ -16,6 +16,7 @@ import {
 import { fetchAssignmentStagesWithToolsByAssignmentId } from 'models/assignmentStageModel';
 import {
   fetchLatestEssaySubmissionByAssignmentIdStudentId,
+  fetchLatestOutlineSubmissionByAssignmentIdStudentId,
   fetchLatestSubmissionsByAssignmentIdStudentId,
 } from 'models/assignmentSubmissionModel';
 import { fetchClassesByIds } from 'models/classModel';
@@ -32,7 +33,11 @@ import {
   AssignmentView,
 } from 'types/assignment';
 import { ClassOption } from 'types/class';
-import { Assignment, AssignmentWritingContent } from 'types/db/assignment';
+import {
+  Assignment,
+  AssignmentOutliningContent,
+  AssignmentWritingContent,
+} from 'types/db/assignment';
 import { Class } from 'types/db/class';
 import { User } from 'types/db/user';
 import { AuthorizedRequest } from 'types/request';
@@ -558,19 +563,32 @@ export const getStudentAssignmentAnalytics = async (
       .json({ error_message: 'Missing assignment ID', error_code: 400 });
   }
 
+  const latestOutlineSubmission =
+    await fetchLatestOutlineSubmissionByAssignmentIdStudentId(
+      assignmentId,
+      req.user.id,
+    );
+  let outline = '';
+  if (latestOutlineSubmission) {
+    const submissionContent =
+      latestOutlineSubmission.content as AssignmentOutliningContent;
+    if ('outline' in submissionContent) {
+      outline = submissionContent.outline;
+    }
+  }
+
   const latestEssaySubmission =
     await fetchLatestEssaySubmissionByAssignmentIdStudentId(
       assignmentId,
       req.user.id,
     );
-  if (!latestEssaySubmission) {
-    throw new Error('Essay not given and assignment submission not found');
-  }
   let essay = '';
-  const submissionContent =
-    latestEssaySubmission.content as AssignmentWritingContent;
-  if ('essay' in submissionContent) {
-    essay = submissionContent.essay;
+  if (latestEssaySubmission) {
+    const submissionContent =
+      latestEssaySubmission.content as AssignmentWritingContent;
+    if ('essay' in submissionContent) {
+      essay = submissionContent.essay;
+    }
   }
 
   const agentUsage = await fetchAgentUsageByAssignmentIdUserId(
@@ -596,7 +614,12 @@ export const getStudentAssignmentAnalytics = async (
     req.user.id,
     assignmentId,
   );
-  const plagiarisedSegments = getPlagiarisedSegments(
+  const outlinePlagiarisedSegments = getPlagiarisedSegments(
+    outline,
+    gptLogs,
+    pasteTextLogs,
+  );
+  const essayPlagiarisedSegments = getPlagiarisedSegments(
     essay,
     gptLogs,
     pasteTextLogs,
@@ -606,7 +629,8 @@ export const getStudentAssignmentAnalytics = async (
     agent_usage: agentUsage,
     prompt_data: promptAnalytics,
     // timeline_data: timelineData,
-    plagiarised_segments: plagiarisedSegments,
+    outline_plagiarised_segments: outlinePlagiarisedSegments,
+    essay_plagiarised_segments: essayPlagiarisedSegments,
   });
 };
 
