@@ -32,6 +32,7 @@ import {
 } from 'types/assignment';
 import {
   AssignmentDraftingContent,
+  AssignmentOutliningContent,
   AssignmentRevisingContent,
 } from 'types/db/assignment';
 import { REMINDER_TYPES, StudentReminder } from 'types/db/reminder';
@@ -313,6 +314,13 @@ export const getSubmissionDetails = async (
   }
 
   // 2. Get plagiarised segments
+  const outlineSubmission = submissions.find(s => s.stage_type === 'outlining');
+  let outline = '';
+  if (outlineSubmission) {
+    const submissionContent =
+      outlineSubmission.content as AssignmentOutliningContent;
+    outline = submissionContent.outline;
+  }
   const writingSubmission =
     submissions.find(s => s.stage_type === 'revising') ||
     submissions.find(s => s.stage_type === 'drafting');
@@ -332,7 +340,12 @@ export const getSubmissionDetails = async (
     studentId,
     assignmentId,
   );
-  const plagiarisedSegments = getPlagiarisedSegments(
+  const outlinePlagiarisedSegments = getPlagiarisedSegments(
+    outline,
+    gptLogs,
+    pasteTextLogs,
+  );
+  const essayPlagiarisedSegments = getPlagiarisedSegments(
     essay,
     gptLogs,
     pasteTextLogs,
@@ -419,8 +432,8 @@ export const getSubmissionDetails = async (
     analytics: {
       agent_usage: agentUsage,
       prompt_data: promptAnalytics,
-      // timeline_data: timelineData,
-      plagiarised_segments: plagiarisedSegments,
+      outline_plagiarised_segments: outlinePlagiarisedSegments,
+      essay_plagiarised_segments: essayPlagiarisedSegments,
     },
     engagement,
     last_reminders: lastRemindersByType,

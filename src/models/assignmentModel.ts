@@ -416,6 +416,7 @@ export const updateExistingAssignment = async (
     updateParams.push(requirements);
     placeholders.push('requirements = ?');
   }
+  console.log(rubrics);
   if (rubrics) {
     updateParams.push(rubrics);
     placeholders.push('rubrics = ?');
