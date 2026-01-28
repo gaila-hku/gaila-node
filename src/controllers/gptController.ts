@@ -534,9 +534,7 @@ export const askDictionaryAgent = async (
     let outline = '';
     let essay = '';
     if (!isStructured) {
-      const contents = await prepareSubmissionContent(req, assignmentId, {
-        outlineOnly: true,
-      });
+      const contents = await prepareSubmissionContent(req, assignmentId);
       outline = contents.outline;
       essay = contents.essay;
     }

@@ -24,7 +24,8 @@ export const fetchLatestGptLogByUserIdToolId = async (
     `SELECT * FROM gpt_logs WHERE user_id = ? AND assignment_tool_id = ? ORDER BY id DESC LIMIT ?`,
     [userId, toolId, limit || 1],
   );
-  return rows as GptLog[];
+  const results = rows as GptLog[];
+  return results.reverse();
 };
 
 export const fetchGptLogsByAssignmentId = async (
