@@ -56,6 +56,7 @@ import {
   VocabGenerateResult,
 } from 'types/external/gpt';
 import { AuthorizedRequest } from 'types/request';
+import { getErrorMessage } from 'utils/getErrorMessage';
 import parseListingQuery from 'utils/parseListingQuery';
 import parseQueryNumber from 'utils/parseQueryNumber';
 import safeJsonParse from 'utils/safeJsonParse';
@@ -306,7 +307,7 @@ export const askGptModel = async (req: AuthorizedRequest, res: Response) => {
     } catch (e) {
       console.error(e);
       return res.status(500).json({
-        error_message: 'ChatGPT error: ' + JSON.stringify(e),
+        error_message: 'ChatGPT error: ' + getErrorMessage(e),
         error_code: 500,
       });
     }
@@ -411,7 +412,7 @@ export const askIdeationGuidingAgent = async (
     } catch (e) {
       console.error(e);
       return res.status(500).json({
-        error_message: 'ChatGPT error: ' + JSON.stringify(e),
+        error_message: 'ChatGPT error: ' + getErrorMessage(e),
         error_code: 500,
       });
     }
@@ -516,7 +517,7 @@ export const askOutlineReviewAgent = async (
     } catch (e) {
       console.error(e);
       return res.status(500).json({
-        error_message: 'ChatGPT error: ' + JSON.stringify(e),
+        error_message: 'ChatGPT error: ' + getErrorMessage(e),
         error_code: 500,
       });
     }
@@ -613,7 +614,7 @@ export const askDictionaryAgent = async (
     } catch (e) {
       console.error(e);
       return res.status(500).json({
-        error_message: 'ChatGPT error: ' + JSON.stringify(e),
+        error_message: 'ChatGPT error: ' + getErrorMessage(e),
         error_code: 500,
       });
     }
@@ -709,7 +710,7 @@ export const askGrammarAgent = async (
     } catch (e) {
       console.error(e);
       return res.status(500).json({
-        error_message: 'ChatGPT error: ' + JSON.stringify(e),
+        error_message: 'ChatGPT error: ' + getErrorMessage(e),
         error_code: 500,
       });
     }
@@ -816,7 +817,7 @@ export const askAutogradeAgent = async (
     } catch (e) {
       console.error(e);
       return res.status(500).json({
-        error_message: 'ChatGPT error: ' + JSON.stringify(e),
+        error_message: 'ChatGPT error: ' + getErrorMessage(e),
         error_code: 500,
       });
     }
@@ -925,7 +926,7 @@ export const askRevisionAgent = async (
     } catch (e) {
       console.error(e);
       return res.status(500).json({
-        error_message: 'ChatGPT error: ' + JSON.stringify(e),
+        error_message: 'ChatGPT error: ' + getErrorMessage(e),
         error_code: 500,
       });
     }
@@ -966,7 +967,7 @@ export const getGptChatHistory = async (
       return res.json({ page, limit, value: gptLogs });
     } catch (err) {
       return res.status(500).json({
-        error_message: 'Server error: ' + JSON.stringify(err),
+        error_message: 'Server error: ' + getErrorMessage(err),
         error_code: 500,
       });
     }
@@ -1088,7 +1089,7 @@ export const getGptUnstrcturedChatHistory = async (
       return res.json({ ...resObj, count });
     } catch (err) {
       return res.status(500).json({
-        error_message: 'Server error: ' + JSON.stringify(err),
+        error_message: 'Server error: ' + getErrorMessage(err),
         error_code: 500,
       });
     }
@@ -1317,7 +1318,7 @@ export const generateVocab = async (req: AuthorizedRequest, res: Response) => {
     } catch (e) {
       console.error(e);
       return res.status(500).json({
-        error_message: 'ChatGPT error: ' + JSON.stringify(e),
+        error_message: 'ChatGPT error: ' + getErrorMessage(e),
         error_code: 500,
       });
     }
@@ -1383,7 +1384,7 @@ export const generateDashboard = async (
         languageStage.id,
       );
       generatedVocabs = generateLogs.flatMap(log =>
-        (JSON.parse(log.gpt_answer) as VocabGenerateResult).items.map(
+        (safeJsonParse(log.gpt_answer) as VocabGenerateResult).items.map(
           item => item.text,
         ),
       );
@@ -1426,9 +1427,14 @@ export const generateDashboard = async (
       revisedEssayTitle = revisingSubmission?.title || '';
     }
 
-    const checklist = JSON.parse(assignment.checklist || '[]') || [];
+    const checklist = safeJsonParse(assignment.checklist || '[]') || [];
 
-    const gptLogs = await fetchGptLogsByAssignmentId(assignmentId);
+    const gptLogs = (await fetchGptLogsByAssignmentId(assignmentId))
+      .filter(log => log.user_question !== 'DASHBOARD_GENERATE')
+      .map(log => ({
+        user_question: log.user_question,
+        gpt_answer: log.gpt_answer,
+      }));
 
     try {
       const userAskTime = Date.now();
@@ -1491,7 +1497,7 @@ export const generateDashboard = async (
     } catch (e) {
       console.error(e);
       return res.status(500).json({
-        error_message: 'ChatGPT error: ' + JSON.stringify(e),
+        error_message: 'ChatGPT error: ' + getErrorMessage(e),
         error_code: 500,
       });
     }

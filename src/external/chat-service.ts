@@ -258,7 +258,7 @@ export const fetchDashboardbGenerationResponse = async (
   revisedEssay: string,
   revisedEssayTitle: string,
   checklist: string[],
-  gptLogs: GptLog[],
+  gptLogs: PastMessage[],
   config: ChatbotConfig | null,
 ): Promise<GptResponse> => {
   const formData = initFormData(config);

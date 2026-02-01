@@ -7,6 +7,7 @@ import {
   AssignmentSubmissionListingItem,
 } from 'types/assignment';
 import { AssignmentSubmission } from 'types/db/assignment';
+import safeJsonParse from 'utils/safeJsonParse';
 
 export const fetchLatestSubmissionsByAssignmentIdStudentId = async (
   assignmentId: number,
@@ -80,7 +81,7 @@ export const saveNewAssignmentSubmission = async (
     assignment_id: assignmentId,
     stage_id: stageId,
     student_id: studentId,
-    content: JSON.parse(content),
+    content: safeJsonParse(content),
     submitted_at: Date.now(),
     is_final: isFinal,
   };
