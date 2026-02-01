@@ -161,8 +161,9 @@ const prepareSubmissionContent = async (
         assignmentId,
         req.user.id,
       );
-    outline = (latestOutlineSubmission?.content as AssignmentOutliningContent)
-      .outline;
+    outline =
+      (latestOutlineSubmission?.content as AssignmentOutliningContent)
+        ?.outline || '';
   }
   if (!config?.outlineOnly && !essay) {
     const latestEssaySubmission =
@@ -170,7 +171,9 @@ const prepareSubmissionContent = async (
         assignmentId,
         req.user.id,
       );
-    essay = (latestEssaySubmission?.content as AssignmentRevisingContent).essay;
+    essay =
+      (latestEssaySubmission?.content as AssignmentRevisingContent)?.essay ||
+      '';
   }
   return { outline, essay };
 };
