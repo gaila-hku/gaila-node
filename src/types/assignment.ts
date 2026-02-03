@@ -39,6 +39,7 @@ export interface AssignmentCreatePayload {
     max_word_count?: number | null;
   };
   rubrics?: RubricItem[];
+  tips?: string[];
   checklist?: string[];
   enrolled_class_ids?: number[];
   enrolled_student_ids?: number[];

@@ -8,6 +8,7 @@ export interface Assignment {
   instructions?: string;
   requirements?: number;
   rubrics?: string;
+  tips?: string;
   checklist?: string;
   config?: string;
   created_by: number;
