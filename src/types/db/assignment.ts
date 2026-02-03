@@ -74,6 +74,7 @@ export interface AssignmentSubmission {
   content?:
     | AssignmentReadingContent
     | AssignmentGoalContent
+    | AssignmentLanguagePreparationContent
     | AssignmentOutliningContent
     | AssignmentDraftingContent
     | AssignmentRevisingContent
@@ -117,6 +118,17 @@ export interface AssignmentReadingContent {
     text_index: number;
   }[];
   model_text_generated?: boolean;
+}
+
+export interface VocabSubmissionItem {
+  id: string;
+  text: string;
+  type: 'word' | 'phrase';
+  will_be_used: boolean;
+}
+
+export interface AssignmentLanguagePreparationContent {
+  generated_vocabs: VocabSubmissionItem[];
 }
 
 export interface AssignmentOutliningContent {

@@ -44,24 +44,20 @@ import {
 } from 'models/gptLogModel';
 import { saveNewTraceData } from 'models/traceDataModel';
 
-import {
+import type {
   AssignmentDraftingContent,
+  AssignmentLanguagePreparationContent,
   AssignmentOutliningContent,
   AssignmentReadingContent,
   AssignmentRevisingContent,
 } from 'types/db/assignment';
 import { GptLog } from 'types/db/gpt';
-import {
-  StudentRevisionExplanationListingItem,
-  VocabGenerateResult,
-} from 'types/external/gpt';
-import { AuthorizedRequest } from 'types/request';
+import { type StudentRevisionExplanationListingItem } from 'types/external/gpt';
+import { type AuthorizedRequest } from 'types/request';
 import { getErrorMessage } from 'utils/getErrorMessage';
 import parseListingQuery from 'utils/parseListingQuery';
 import parseQueryNumber from 'utils/parseQueryNumber';
 import safeJsonParse from 'utils/safeJsonParse';
-
-import { fetchStructuredGptLogsByUserIdToolId } from './../models/gptLogModel';
 
 // TODO: also prepare image
 const prepareGptRequest = async (
@@ -1379,15 +1375,17 @@ export const generateDashboard = async (
     );
     let generatedVocabs: string[] = [];
     if (languageStage) {
-      const generateLogs = await fetchStructuredGptLogsByUserIdToolId(
-        userId,
+      const submission = await fetchLatestSubmissionByStageIdStudentId(
         languageStage.id,
+        userId,
       );
-      generatedVocabs = generateLogs.flatMap(log =>
-        (safeJsonParse(log.gpt_answer) as VocabGenerateResult).items.map(
-          item => item.text,
-        ),
-      );
+      if (submission) {
+        generatedVocabs = (
+          submission.content as AssignmentLanguagePreparationContent
+        ).generated_vocabs
+          .filter(s => s.will_be_used)
+          .map(s => s.text);
+      }
     }
 
     const outlineStage = assignmentStages.find(
