@@ -26,6 +26,7 @@ export const fetchChatResponse = async (
   rolePrompt: string,
   outline: string,
   essay: string,
+  reading: string,
   rubrics: string,
   pastMessages: PastMessage[],
   taskDescription: string,
@@ -37,6 +38,7 @@ export const fetchChatResponse = async (
   formData.append('taskDescription', taskDescription);
   formData.append('outline', outline);
   formData.append('essay', essay);
+  formData.append('reading', reading);
   formData.append('rubrics', rubrics);
   formData.append('past_messages', JSON.stringify(pastMessages));
 

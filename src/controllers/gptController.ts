@@ -257,6 +257,7 @@ export const askGptModel = async (req: AuthorizedRequest, res: Response) => {
         rolePrompt,
         outline || '',
         essay || '',
+        req.body.reading || '',
         JSON.stringify(rubrics || ''),
         pastMessages,
         taskDescription || '',
