@@ -29,6 +29,7 @@ import {
 } from 'models/assignmentToolModel';
 import {
   fetchGptLogsByAssignmentId,
+  fetchGptLogsByUserIdToolId,
   fetchGptUnstructuredLogCountByUserIdAssignmentId,
   fetchGptUnstructuredLogListingByUserIdAssignmentId,
   fetchGptUnstructuredLogsByUserIdToolId,
@@ -281,6 +282,7 @@ export const askGptModel = async (req: AuthorizedRequest, res: Response) => {
         JSON.stringify(chatRes.wholeprompt),
         userAskTime,
         Date.now(),
+        req.body.extra,
         false,
       );
 
@@ -386,6 +388,7 @@ export const askIdeationGuidingAgent = async (
         JSON.stringify(chatRes.wholeprompt),
         userAskTime,
         Date.now(),
+        null,
         isStructured,
       );
 
@@ -455,6 +458,12 @@ export const askOutlineReviewAgent = async (
       throw new Error('Rubrics not found');
     }
 
+    const extra = safeJsonParse(req.body.extra) as { current_step: number };
+    const currentStep = extra?.current_step;
+    if (!isNumber(currentStep)) {
+      throw new Error('Current step required');
+    }
+
     try {
       const userAskTime = Date.now();
       const chatRes = await fetchOutlineReviewAgentResponse(
@@ -464,6 +473,7 @@ export const askOutlineReviewAgent = async (
         pastMessages,
         JSON.stringify(rubrics),
         taskDescription || '',
+        currentStep,
         isStructured,
         config,
       );
@@ -491,6 +501,7 @@ export const askOutlineReviewAgent = async (
         JSON.stringify(chatRes.wholeprompt),
         userAskTime,
         Date.now(),
+        req.body.extra,
         isStructured,
       );
 
@@ -588,6 +599,7 @@ export const askDictionaryAgent = async (
         JSON.stringify(chatRes.wholeprompt),
         userAskTime,
         Date.now(),
+        null,
         isStructured,
       );
 
@@ -684,6 +696,7 @@ export const askGrammarAgent = async (
         JSON.stringify(chatRes.wholeprompt),
         userAskTime,
         Date.now(),
+        null,
         isStructured,
       );
 
@@ -793,6 +806,7 @@ export const askAutogradeAgent = async (
         JSON.stringify(chatRes.wholeprompt),
         userAskTime,
         Date.now(),
+        null,
         isStructured,
       );
 
@@ -900,6 +914,7 @@ export const askRevisionAgent = async (
         JSON.stringify(chatRes.wholeprompt),
         userAskTime,
         Date.now(),
+        null,
         isStructured,
       );
 
@@ -953,6 +968,15 @@ export const getGptChatHistory = async (
     const { limit, page } = parseListingQuery(req);
 
     try {
+      if (req.query.include_structured) {
+        const gptLogs = await fetchGptLogsByUserIdToolId(
+          req.user.id,
+          parsedToolId,
+          limit,
+          page,
+        );
+        return res.json({ page, limit, value: gptLogs });
+      }
       const gptLogs = await fetchGptUnstructuredLogsByUserIdToolId(
         req.user.id,
         parsedToolId,
@@ -1297,6 +1321,7 @@ export const generateVocab = async (req: AuthorizedRequest, res: Response) => {
         JSON.stringify(chatRes.wholeprompt),
         userAskTime,
         Date.now(),
+        null,
         true,
       );
 
@@ -1471,6 +1496,7 @@ export const generateDashboard = async (
         JSON.stringify(chatRes.wholeprompt),
         userAskTime,
         Date.now(),
+        null,
         true,
       );
 

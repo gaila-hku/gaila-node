@@ -82,6 +82,7 @@ export const fetchOutlineReviewAgentResponse = async (
   pastMessages: PastMessage[],
   rubrics: string,
   taskDescription: string,
+  currentStep: number,
   is_structured: boolean,
   config: ChatbotConfig | null,
 ): Promise<GptResponse> => {
@@ -92,6 +93,7 @@ export const fetchOutlineReviewAgentResponse = async (
   formData.append('taskDescription', taskDescription);
   formData.append('rubrics', rubrics);
   formData.append('past_messages', JSON.stringify(pastMessages));
+  formData.append('current_step', currentStep.toString());
   formData.append('is_structured', is_structured ? '1' : '0');
 
   const res = await fetch(chatServiceUrl + '/outline-review-agent', {
