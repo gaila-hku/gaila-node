@@ -288,7 +288,7 @@ export const saveNewAssignment = async (
 ): Promise<Assignment | null> => {
   // 1. Save assignment
   const [insertRows] = await pool.query(
-    'INSERT INTO assignments (title, description, due_date, type, instructions, requirements, rubrics, tips, checklist, config, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    'INSERT INTO assignments (title, description, due_date, type, instructions, requirements, rubrics, tips, checklist, config, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
     [
       title,
       description || null,
