@@ -178,6 +178,7 @@ const prepareSubmissionContent = async (
 
 const pendingCategoryLogs: GptLog[] = [];
 const CATEGORY_BATCH_SIZE = 5;
+let isCategorizing = false;
 
 const classifyPrompt = async (
   gptlog: GptLog,
@@ -185,45 +186,54 @@ const classifyPrompt = async (
   forceBatch?: boolean,
 ) => {
   pendingCategoryLogs.push(gptlog);
-  if (pendingCategoryLogs.length < CATEGORY_BATCH_SIZE && !forceBatch) {
-    return;
-  }
-  const res = await fetchPromptClassificationResponse(
-    taskDescription,
-    pendingCategoryLogs.map(s => s.user_question),
-  );
-  if (!res.response.choices[0]) {
-    console.error('Invalid response from ChatGPT');
-    return;
-  }
-  const gptAnswer = res.response.choices[0].message.parsed;
-  if (!gptAnswer) {
-    console.error(
-      'No response content from ChatGPT.\nResponse: ' + JSON.stringify(res),
-    );
-    return;
-  }
-  const categories = 'categories' in gptAnswer ? gptAnswer.categories : [];
   if (
-    !isArray(categories) ||
-    categories.length !== pendingCategoryLogs.length ||
-    !categories.every(
-      (s, index) =>
-        s.prompt.slice(0, 3) ===
-        pendingCategoryLogs[index].user_question.slice(0, 3),
-    ) ||
-    !categories.every(
-      s => isNumber(s.prompt_nature_code) && isNumber(s.writing_aspect_code),
-    )
+    (pendingCategoryLogs.length < CATEGORY_BATCH_SIZE && !forceBatch) ||
+    isCategorizing
   ) {
-    console.error('Response length mismatch from ChatGPT');
     return;
   }
-  savePromptCategories(
-    pendingCategoryLogs.map(s => s.id),
-    categories.map(s => s.prompt_nature_code),
-    categories.map(s => s.writing_aspect_code),
-  );
+  isCategorizing = true;
+  try {
+    const res = await fetchPromptClassificationResponse(
+      taskDescription,
+      pendingCategoryLogs.map(s => s.user_question),
+    );
+    if (!res.response.choices[0]) {
+      throw new Error('Invalid response from ChatGPT');
+    }
+    const gptAnswer = res.response.choices[0].message.parsed;
+    if (!gptAnswer) {
+      throw new Error(
+        'No response content from ChatGPT.\nResponse: ' + JSON.stringify(res),
+      );
+    }
+    const categories = 'categories' in gptAnswer ? gptAnswer.categories : [];
+    if (
+      !isArray(categories) ||
+      categories.length !== pendingCategoryLogs.length ||
+      !categories.every(
+        (s, index) =>
+          s.prompt.slice(0, 3) ===
+          pendingCategoryLogs[index].user_question.slice(0, 3),
+      ) ||
+      !categories.every(
+        s => isNumber(s.prompt_nature_code) && isNumber(s.writing_aspect_code),
+      )
+    ) {
+      throw new Error('Response length mismatch from ChatGPT');
+    }
+    savePromptCategories(
+      pendingCategoryLogs.map(s => s.id),
+      categories.map(s => s.prompt_nature_code),
+      categories.map(s => s.writing_aspect_code),
+    );
+  } catch (e) {
+    if (e instanceof Error) {
+      console.error(e.message);
+    }
+  } finally {
+    isCategorizing = false;
+  }
 };
 
 export const askGptModel = async (req: AuthorizedRequest, res: Response) => {
