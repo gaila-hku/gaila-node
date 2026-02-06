@@ -190,6 +190,7 @@ export const fetchRevisionAgentResponse = async (
   outline: string,
   essay: string,
   rubrics: string,
+  checklist: string,
   pastMessages: PastMessage[],
   taskDescription: string,
   is_structured: boolean,
@@ -202,6 +203,7 @@ export const fetchRevisionAgentResponse = async (
   formData.append('outline', outline);
   formData.append('essay', essay);
   formData.append('rubrics', rubrics);
+  formData.append('checklist', checklist);
   formData.append('past_messages', JSON.stringify(pastMessages));
   formData.append('is_structured', is_structured ? '1' : '0');
 

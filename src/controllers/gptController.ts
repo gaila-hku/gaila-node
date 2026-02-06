@@ -878,7 +878,9 @@ export const askRevisionAgent = async (
       { essayOnly: isStructured },
     );
 
-    if (!assignmentId) {
+    const assignment = await fetchAssignmentById(assignmentId || 0);
+
+    if (!assignmentId || !assignment) {
       throw new Error('Invalid assignment ID');
     }
 
@@ -888,6 +890,8 @@ export const askRevisionAgent = async (
       throw new Error('Rubrics not found');
     }
 
+    const checklist = safeJsonParse(assignment.checklist || '[]') || [];
+
     try {
       const userAskTime = Date.now();
       const chatRes = await fetchRevisionAgentResponse(
@@ -896,7 +900,8 @@ export const askRevisionAgent = async (
         outline,
         essay,
         JSON.stringify(rubrics),
-        pastMessages,
+        JSON.stringify(checklist),
+        isStructured ? [] : pastMessages,
         taskDescription || '',
         isStructured,
         config,
