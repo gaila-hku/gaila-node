@@ -17,7 +17,10 @@ import {
   fetchAssignmentDescriptionById,
   fetchRubricsByAssignmentId,
 } from 'models/assignmentModel';
-import { fetchAssignmentStagesWithToolsByAssignmentId } from 'models/assignmentStageModel';
+import {
+  fetchAssignmentStageById,
+  fetchAssignmentStagesWithToolsByAssignmentId,
+} from 'models/assignmentStageModel';
 import {
   fetchLatestEssaySubmissionByAssignmentIdStudentId,
   fetchLatestOutlineSubmissionByAssignmentIdStudentId,
@@ -1309,11 +1312,18 @@ export const generateVocab = async (req: AuthorizedRequest, res: Response) => {
 
     const rubrics = (await fetchRubricsByAssignmentId(assignmentId)) || '';
 
+    const stageConfig = safeJsonParse(
+      (await fetchAssignmentStageById(stageId))?.config,
+    );
+    const categories =
+      (stageConfig as { vocab_categories?: string[] }).vocab_categories || [];
+
     try {
       const userAskTime = Date.now();
       const chatRes = await fetchVocabGenerationResponse(
         rolePrompt,
         JSON.stringify(rubrics),
+        JSON.stringify(categories),
         taskDescription || '',
         config,
       );

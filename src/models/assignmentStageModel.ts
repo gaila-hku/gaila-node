@@ -55,3 +55,17 @@ export const fetchTeacherGradingToolIdByAssignmentId = async (
   const result = rows as { id: number }[];
   return result.length > 0 ? result[0].id : null;
 };
+
+export const fetchAssignmentStageById = async (
+  stageId: number,
+): Promise<AssignmentStage | null> => {
+  const [rows] = await pool.query(
+    `
+    SELECT * FROM assignment_stages
+    WHERE id = ?
+    `,
+    [stageId],
+  );
+  const result = rows as AssignmentStage[];
+  return result.length > 0 ? result[0] : null;
+};

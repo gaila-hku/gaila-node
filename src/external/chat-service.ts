@@ -236,6 +236,7 @@ export const fetchPromptClassificationResponse = async (
 export const fetchVocabGenerationResponse = async (
   rolePrompt: string,
   rubrics: string,
+  categories: string,
   taskDescription: string,
   config: ChatbotConfig | null,
 ): Promise<GptResponse> => {
@@ -243,6 +244,7 @@ export const fetchVocabGenerationResponse = async (
   formData.append('chatgptRoleDescription', rolePrompt);
   formData.append('taskDescription', taskDescription);
   formData.append('rubrics', rubrics);
+  formData.append('categories', categories);
 
   const res = await fetch(chatServiceUrl + '/generate-vocab', {
     method: 'POST',
