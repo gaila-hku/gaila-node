@@ -148,14 +148,14 @@ const prepareSubmissionContent = async (
   assignmentId: number | undefined,
   config?: { essayOnly?: boolean; outlineOnly?: boolean },
 ) => {
-  if (req.user?.role !== 'student') {
-    return { outline: '', essay: '' };
-  }
   if (!assignmentId) {
     throw new Error('Essay and assignment ID not given');
   }
   let outline: string = req.body.outline || '';
   let essay: string = req.body.essay || '';
+  if (req.user?.role !== 'student') {
+    return { outline, essay };
+  }
   if (!config?.essayOnly && !outline) {
     const latestOutlineSubmission =
       await fetchLatestOutlineSubmissionByAssignmentIdStudentId(

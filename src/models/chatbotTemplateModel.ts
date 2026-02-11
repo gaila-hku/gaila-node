@@ -31,7 +31,7 @@ export const updateTemplate = async (
   }
   await pool.query(
     `UPDATE chatbot_templates SET ${placeholders.join(', ')} WHERE id = ?`,
-    updateParams,
+    [...updateParams, templateId],
   );
   const [templateRows] = await pool.query(
     `SELECT * FROM chatbot_templates WHERE id = ?`,
