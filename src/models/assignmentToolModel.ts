@@ -1,3 +1,5 @@
+import { defaults, isString } from 'lodash-es';
+
 import pool from 'config/db';
 import { AssignmentTool, ChatbotConfig } from 'types/db/assignment';
 
@@ -21,7 +23,7 @@ export const fetchToolSettingsByAssignmentToolId = async (
     ? {
         rolePrompt:
           result[0].custom_role_prompt || result[0].default_role_prompt,
-        config: result[0].custom_config || result[0].default_config,
+        config: defaults(result[0].custom_config, result[0].default_config),
       }
     : null;
 };
@@ -35,6 +37,16 @@ export const fetchAssignmentToolByAssignmentToolId = async (
   );
   const result = rows as AssignmentTool[];
   return result.length > 0 ? result[0] : null;
+};
+
+export const fetchAssignmentToolsByAssignmentId = async (
+  assignmentId: number,
+): Promise<AssignmentTool[]> => {
+  const [rows] = await pool.query(
+    `SELECT * FROM assignment_tools WHERE  assignment_id = ?`,
+    [assignmentId],
+  );
+  return rows as AssignmentTool[];
 };
 
 export const saveNewAssignmentTool = async (
@@ -59,4 +71,32 @@ export const saveNewAssignmentTool = async (
       [assignmentId, stageId, key, enabled],
     );
   }
+};
+
+export const updateAssignmentToolConfigById = async (
+  assignmentToolId: number,
+  rolePrompt: string | undefined,
+  config: string | undefined,
+): Promise<AssignmentTool | null> => {
+  const updateParams = [];
+  const placeholders = [];
+  if (isString(rolePrompt)) {
+    updateParams.push(rolePrompt);
+    placeholders.push('custom_role_prompt = ?');
+  }
+  if (config) {
+    updateParams.push(config);
+    placeholders.push('custom_config = ?');
+  }
+  updateParams.push(assignmentToolId);
+  await pool.query(
+    `UPDATE assignment_tools SET ${placeholders.join(', ')} WHERE id = ?`,
+    updateParams,
+  );
+  const [rows] = await pool.query(
+    `SELECT * FROM assignment_tools WHERE id = ?`,
+    [assignmentToolId],
+  );
+  const result = rows as AssignmentTool[];
+  return result.length > 0 ? result[0] : null;
 };

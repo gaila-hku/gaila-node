@@ -38,7 +38,7 @@ export interface ChatbotConfig {
   temperature: number;
 }
 
-export interface ChatbotTemplates {
+export interface ChatbotTemplate {
   id: number;
   name: string;
   description: string;
