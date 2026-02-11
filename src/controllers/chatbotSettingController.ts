@@ -63,6 +63,7 @@ export const updateGeneralSettings = async (
 
   const template = await updateTemplate(
     req.body.template_id,
+    req.body.description,
     req.body.role_prompt,
     req.body.config,
   );

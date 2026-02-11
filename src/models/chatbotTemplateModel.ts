@@ -1,3 +1,5 @@
+import { isString } from 'lodash-es';
+
 import pool from 'config/db';
 import { ChatbotTemplate } from 'types/db/assignment';
 import { StudentReminder } from 'types/db/reminder';
@@ -9,12 +11,27 @@ export const fetchTemplates = async (): Promise<ChatbotTemplate[]> => {
 
 export const updateTemplate = async (
   templateId: number,
+  description: string,
   rolePrompt: string,
   config: string,
 ): Promise<ChatbotTemplate | null> => {
+  const updateParams = [];
+  const placeholders = [];
+  if (isString(description)) {
+    updateParams.push(description);
+    placeholders.push('description = ?');
+  }
+  if (isString(rolePrompt)) {
+    updateParams.push(rolePrompt);
+    placeholders.push('default_role_prompt = ?');
+  }
+  if (config) {
+    updateParams.push(config);
+    placeholders.push('default_config = ?');
+  }
   await pool.query(
-    `UPDATE chatbot_templates SET default_role_prompt = ?, default_config = ? WHERE id = ?`,
-    [rolePrompt, config, templateId],
+    `UPDATE chatbot_templates SET ${placeholders.join(', ')} WHERE id = ?`,
+    updateParams,
   );
   const [templateRows] = await pool.query(
     `SELECT * FROM chatbot_templates WHERE id = ?`,
