@@ -23,15 +23,87 @@ export type AssignmnentStageType =
   | 'revising'
   | 'reflection';
 
-export interface AssignmentStage {
+export type AssignmentStage =
+  | AssignmentStageReading
+  | AssignmentStageGoalSetting
+  | AssignmentStageLanguagePreparation
+  | AssignmentStageOutlining
+  | AssignmentStageDrafting
+  | AssignmentStageRevising
+  | AssignmentStageReflection;
+
+export interface AssignmentStageBase {
   id: number;
-  assignment_id: number;
-  stage_type: AssignmnentStageType;
-  order_index: number;
+  stage_type:
+    | 'reading'
+    | 'goal_setting'
+    | 'language_preparation'
+    | 'outlining'
+    | 'drafting'
+    | 'revising'
+    | 'reflection';
   enabled: boolean;
-  config?: string;
+  order_index: number;
+  tools: { id: number; key: string; enabled: boolean }[];
+  config: Record<string, unknown>;
 }
 
+export interface AssignmentStageReading extends AssignmentStageBase {
+  stage_type: 'reading';
+  config: {
+    readings?: string[];
+    annotation_enabled?: boolean;
+    annotation_labels?: string[];
+  };
+}
+
+export interface AssignmentStageGoalSetting extends AssignmentStageBase {
+  stage_type: 'goal_setting';
+}
+
+export interface AssignmentStageLanguagePreparation
+  extends AssignmentStageBase {
+  stage_type: 'language_preparation';
+  config: {
+    readings?: string[];
+    vocabulary_enabled: boolean;
+    vocab_categories?: string[];
+  };
+}
+
+export interface AssignmentStageOutlining extends AssignmentStageBase {
+  stage_type: 'outlining';
+  config: {
+    dashboard_enabled?: boolean;
+  };
+}
+
+export interface AssignmentStageDrafting extends AssignmentStageBase {
+  stage_type: 'drafting';
+  config: {
+    dashboard_enabled?: boolean;
+  };
+}
+
+export interface AssignmentStageRevising extends AssignmentStageBase {
+  stage_type: 'revising';
+  config: {
+    revision_tool_ask_explanation?: boolean;
+    dashboard_enabled?: boolean;
+  };
+}
+
+export type AssignmentStageWriting =
+  | AssignmentStageOutlining
+  | AssignmentStageDrafting
+  | AssignmentStageRevising;
+
+export interface AssignmentStageReflection extends AssignmentStageBase {
+  stage_type: 'reflection';
+  config: {
+    reflection_questions?: string[];
+  };
+}
 export interface ChatbotConfig {
   max_tokens: number;
   choices: number;

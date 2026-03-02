@@ -36,6 +36,7 @@ import { ClassOption } from 'types/class';
 import {
   Assignment,
   AssignmentOutliningContent,
+  AssignmentStageReflection,
   AssignmentWritingContent,
 } from 'types/db/assignment';
 import { Class } from 'types/db/class';
@@ -505,11 +506,19 @@ export const getAssignmentProgressDetails = async (
   const stages =
     await fetchAssignmentStagesWithToolsByAssignmentId(assignmentId);
 
-  const isFinished = stages.every(
-    stage =>
-      !stage.enabled ||
-      !!submissions.find(s => s.stage_id === stage.id && s.is_final),
-  );
+  const isFinished = stages
+    .filter(
+      stage =>
+        !stage.enabled ||
+        stage.stage_type !== 'reflection' ||
+        !!(stage as AssignmentStageReflection).config.reflection_questions
+          ?.length,
+    )
+    .every(
+      stage =>
+        !stage.enabled ||
+        !!submissions.find(s => s.stage_id === stage.id && s.is_final),
+    );
   let currentStage = stages.findIndex(
     stage =>
       stage.enabled &&
