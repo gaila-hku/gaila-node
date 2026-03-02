@@ -1,4 +1,8 @@
-import { GptLog, StudentRevisionExplanation } from 'types/db/gpt';
+import {
+  GptLog,
+  StudentRevisionExplanation,
+  StudentRevisionPlan,
+} from 'types/db/gpt';
 
 interface GptResponseMessage {
   role: string;
@@ -65,6 +69,14 @@ export interface GptClassificationResponse extends GptResponse {
 
 export interface StudentRevisionExplanationListingItem
   extends Omit<StudentRevisionExplanation, 'gpt_log_id'> {
+  gpt_log: Pick<
+    GptLog,
+    'id' | 'user_ask_time' | 'user_question' | 'gpt_answer' | 'is_structured'
+  >;
+}
+
+export interface StudentRevisionPlanListingItem
+  extends Omit<StudentRevisionPlan, 'gpt_log_id'> {
   gpt_log: Pick<
     GptLog,
     'id' | 'user_ask_time' | 'user_question' | 'gpt_answer' | 'is_structured'

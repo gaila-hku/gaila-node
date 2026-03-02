@@ -11,9 +11,12 @@ import {
   getGptChatHistory,
   getGptRevisionExplanationByGptLog,
   getGptRevisionExplanationListing,
+  getGptRevisionPlanByGptLog,
+  getGptRevisionPlanListing,
   getGptUnstrcturedChatHistory as getGptAllUnstrcturedChatHistory,
   getLatestGptStructuredOutput,
   saveRevisionExplanation,
+  saveRevisionPlan,
 } from 'controllers/gptController';
 import { Router } from 'express';
 import { authorizeRole } from 'middleware/auth';
@@ -43,6 +46,13 @@ router.get(
   '/revision-explanation-listing',
   authorizeRole(),
   getGptRevisionExplanationListing,
+);
+router.post('/submit-revision-plan', authorizeRole(), saveRevisionPlan);
+router.get('/revision-plans', authorizeRole(), getGptRevisionPlanByGptLog);
+router.get(
+  '/revision-plan-listing',
+  authorizeRole(),
+  getGptRevisionPlanListing,
 );
 router.post('/generate-vocab', authorizeRole(), generateVocab);
 router.post('/generate-dashboard', authorizeRole(), generateDashboard);

@@ -2,8 +2,15 @@ import { fetchStudentIdsByAssignmentId } from 'models/assignmentModel';
 import { ResultSetHeader } from 'mysql2';
 
 import pool from 'config/db';
-import { GptLog, StudentRevisionExplanation } from 'types/db/gpt';
-import { StudentRevisionExplanationListingItem } from 'types/external/gpt';
+import {
+  GptLog,
+  StudentRevisionExplanation,
+  StudentRevisionPlan,
+} from 'types/db/gpt';
+import {
+  StudentRevisionExplanationListingItem,
+  StudentRevisionPlanListingItem,
+} from 'types/external/gpt';
 import {
   AgentUsageData,
   GptAnalytics,
@@ -501,6 +508,89 @@ export const saveStudentRevisionExplanation = async (
     aspect_id: aspectId,
     response_type: responseType,
     explanation: explanation,
+    saved_at: savedAt,
+  };
+};
+
+export const fetchStudentRevisionPlanByUserIdAssignmentId = async (
+  userId: number,
+  assignmentId: number,
+  limit: number,
+  page: number,
+) => {
+  const [rows] = await pool.query(
+    `SELECT srp.id, srp.user_id, srp.aspect_id, srp.response_type, srp.plan, 
+      ( 
+        SELECT JSON_OBJECT('id', log.id, 'user_ask_time', log.user_ask_time, 'user_question', log.user_question, 'gpt_answer', log.gpt_answer, 'is_structured', log.is_structured)
+        FROM gpt_logs log
+        WHERE srp.gpt_log_id = log.id
+      ) as gpt_log
+    FROM student_revision_plans srp
+    JOIN gpt_logs gl ON srp.gpt_log_id = gl.id
+    JOIN assignment_tools at ON gl.assignment_tool_id = at.id AND at.assignment_id = ?
+    WHERE srp.user_id = ?
+    ORDER BY user_ask_time DESC
+    LIMIT ? OFFSET ?`,
+    [assignmentId, userId, limit, (page - 1) * limit],
+  );
+  return rows as StudentRevisionPlanListingItem[];
+};
+
+export const fetchStudentRevisionPlanCountByUserIdAssignmentId = async (
+  userId: number,
+  assignmentId: number,
+) => {
+  const [rows] = await pool.query(
+    `SELECT COUNT(*)
+    FROM student_revision_plans srp
+    JOIN gpt_logs gl ON srp.gpt_log_id = gl.id
+    JOIN assignment_tools at ON gl.assignment_tool_id = at.id AND at.assignment_id = ?
+    WHERE srp.user_id = ?`,
+    [assignmentId, userId],
+  );
+  const result = rows as { 'COUNT(*)': number }[];
+  return result[0]['COUNT(*)'];
+};
+
+export const fetchStudentRevisionPlanByGptLogIdsAspectIds = async (
+  gptLogIds: number[],
+  aspectIds: string[],
+) => {
+  if (gptLogIds.length === 0 || aspectIds.length === 0) {
+    return [];
+  }
+
+  if (gptLogIds.length !== aspectIds.length) {
+    throw new Error('gptLogIds and aspectIds must have the same length');
+  }
+
+  const [rows] = await pool.query(
+    `SELECT * from student_revision_plans WHERE gpt_log_id IN (?) AND aspect_id IN (?)`,
+    [gptLogIds, aspectIds],
+  );
+  return rows as StudentRevisionPlan[];
+};
+
+export const saveStudentRevisionPlan = async (
+  userId: number,
+  gptLogId: number,
+  aspectId: string,
+  responseType: StudentRevisionPlan['response_type'],
+  plan: string,
+): Promise<StudentRevisionPlan> => {
+  const savedAt = Date.now();
+  const [insertRows] = await pool.query(
+    'INSERT INTO student_revision_plans (user_id, gpt_log_id, aspect_id, response_type, plan, saved_at) VALUES (?, ?, ?, ?, ?, ?)',
+    [userId, gptLogId, aspectId, responseType, plan, savedAt],
+  );
+  const id = (insertRows as ResultSetHeader).insertId;
+  return {
+    id,
+    user_id: userId,
+    gpt_log_id: gptLogId,
+    aspect_id: aspectId,
+    response_type: responseType,
+    plan: plan,
     saved_at: savedAt,
   };
 };

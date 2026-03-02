@@ -41,10 +41,14 @@ import {
   fetchStudentRevisionExplanationByGptLogIdsAspectIds,
   fetchStudentRevisionExplanationByUserIdAssignmentId,
   fetchStudentRevisionExplanationCountByUserIdAssignmentId,
+  fetchStudentRevisionPlanByGptLogIdsAspectIds,
+  fetchStudentRevisionPlanByUserIdAssignmentId,
+  fetchStudentRevisionPlanCountByUserIdAssignmentId,
   fetchUncategorizedPromptsByAssignmentId,
   saveNewGptLog,
   savePromptCategories,
   saveStudentRevisionExplanation,
+  saveStudentRevisionPlan,
 } from 'models/gptLogModel';
 import { saveNewTraceData } from 'models/traceDataModel';
 
@@ -56,7 +60,10 @@ import type {
   AssignmentRevisingContent,
 } from 'types/db/assignment';
 import { GptLog } from 'types/db/gpt';
-import { type StudentRevisionExplanationListingItem } from 'types/external/gpt';
+import {
+  type StudentRevisionExplanationListingItem,
+  StudentRevisionPlanListingItem,
+} from 'types/external/gpt';
 import { type AuthorizedRequest } from 'types/request';
 import { getErrorMessage } from 'utils/getErrorMessage';
 import parseListingQuery from 'utils/parseListingQuery';
@@ -1275,6 +1282,154 @@ export const getGptRevisionExplanationListing = async (
           studentId,
           assignmentId,
         );
+      return res.json({ ...resObj, count });
+    } catch (e) {
+      return res.status(500).json({
+        error_message: 'Server error: ' + (e as Error).message,
+        error_code: 500,
+      });
+    }
+  } catch (e) {
+    return res.status(400).json({
+      error_message: 'Invalid query parameters: ' + (e as Error).message,
+      error_code: 400,
+    });
+  }
+};
+
+export const saveRevisionPlan = async (
+  req: AuthorizedRequest,
+  res: Response,
+) => {
+  if (!req.user?.id) {
+    return res
+      .status(401)
+      .json({ error_message: 'User not authenticated', error_code: 401 });
+  }
+
+  const {
+    gpt_log_id: gptLogId,
+    aspect_id: aspectId,
+    response_type: responseType,
+    plan,
+  } = req.body;
+
+  if (!gptLogId || !aspectId || !responseType) {
+    return res
+      .status(400)
+      .json({ error_message: 'Missing required fields', error_code: 400 });
+  }
+
+  try {
+    const aiResponseLog = await saveStudentRevisionPlan(
+      req.user.id,
+      gptLogId,
+      aspectId,
+      responseType,
+      plan,
+    );
+
+    if (!aiResponseLog) {
+      return res
+        .status(404)
+        .json({ error_message: 'GPT log not found', error_code: 404 });
+    }
+
+    return res.json(aiResponseLog);
+  } catch (e) {
+    return res.status(500).json({
+      error_message: 'Server error: ' + (e as Error).message,
+      error_code: 500,
+    });
+  }
+};
+
+export const getGptRevisionPlanByGptLog = async (
+  req: AuthorizedRequest,
+  res: Response,
+) => {
+  if (!req.user?.id) {
+    return res
+      .status(401)
+      .json({ error_message: 'User not authenticated', error_code: 401 });
+  }
+
+  const gptLogIds = safeJsonParse(req.query.gpt_log_ids as string);
+  if (!isArray(gptLogIds)) {
+    return res
+      .status(400)
+      .json({ error_message: 'Invalid GPT Log IDs', error_code: 400 });
+  }
+
+  const aspectIds = safeJsonParse(req.query.aspect_ids as string);
+  if (!isArray(aspectIds)) {
+    return res
+      .status(400)
+      .json({ error_message: 'Invalid aspect IDs', error_code: 400 });
+  }
+
+  try {
+    const plans = await fetchStudentRevisionPlanByGptLogIdsAspectIds(
+      gptLogIds as number[],
+      aspectIds as string[],
+    );
+    return res.json(plans);
+  } catch (e) {
+    return res.status(500).json({
+      error_message: 'Server error: ' + (e as Error).message,
+      error_code: 500,
+    });
+  }
+};
+
+export const getGptRevisionPlanListing = async (
+  req: AuthorizedRequest,
+  res: Response,
+) => {
+  if (!req.user?.id) {
+    return res
+      .status(401)
+      .json({ error_message: 'User not authenticated', error_code: 401 });
+  }
+
+  try {
+    const { limit, page } = parseListingQuery(req);
+
+    const studentId = parseQueryNumber(req.query.student_id);
+    if (isNil(studentId) || isNaN(studentId)) {
+      return res
+        .status(400)
+        .json({ error_message: 'Invalid student ID', error_code: 400 });
+    }
+
+    const assignmentId = parseQueryNumber(req.query.assignment_id);
+    if (isNil(assignmentId) || isNaN(assignmentId)) {
+      return res
+        .status(400)
+        .json({ error_message: 'Invalid assignment ID', error_code: 400 });
+    }
+
+    try {
+      const resObj = {
+        page,
+        limit,
+        value: [] as StudentRevisionPlanListingItem[],
+      };
+      resObj.value = await fetchStudentRevisionPlanByUserIdAssignmentId(
+        studentId,
+        assignmentId,
+        limit,
+        page,
+      );
+
+      if (req.query.skipCount) {
+        return res.json(resObj);
+      }
+
+      const count = await fetchStudentRevisionPlanCountByUserIdAssignmentId(
+        studentId,
+        assignmentId,
+      );
       return res.json({ ...resObj, count });
     } catch (e) {
       return res.status(500).json({
