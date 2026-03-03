@@ -11,7 +11,7 @@ import {
   fetchRevisionAgentResponse,
   fetchVocabGenerationResponse,
 } from 'external/chat-service';
-import { isArray, isNil, isNumber } from 'lodash-es';
+import { isArray, isNil, isNumber, uniq } from 'lodash-es';
 import {
   fetchAssignmentById,
   fetchAssignmentDescriptionById,
@@ -1455,6 +1455,7 @@ export const generateVocab = async (req: AuthorizedRequest, res: Response) => {
       stageId,
       taskDescription,
       config,
+      pastMessages,
     } = await prepareGptRequest(req, { questionUnstructuredOnly: true });
 
     if (!assignmentId) {
@@ -1473,12 +1474,19 @@ export const generateVocab = async (req: AuthorizedRequest, res: Response) => {
     const categories =
       (stageConfig as { vocab_categories?: string[] }).vocab_categories || [];
 
+    const pastVocabs: string[] = uniq(
+      pastMessages.flatMap(log =>
+        safeJsonParse(log.gpt_answer).items.map((item: any) => item.text),
+      ),
+    );
+
     try {
       const userAskTime = Date.now();
       const chatRes = await fetchVocabGenerationResponse(
         rolePrompt,
         JSON.stringify(rubrics),
-        JSON.stringify(categories),
+        categories,
+        pastVocabs,
         taskDescription || '',
         config,
       );
