@@ -1,3 +1,4 @@
+import { isString } from 'lodash-es';
 import { ResultSetHeader } from 'mysql2';
 
 import pool from 'config/db';
@@ -209,7 +210,7 @@ export const updateExistingClass = async (
     updateParams.push(class_key);
     placeholders.push('class_key = ?');
   }
-  if (description) {
+  if (isString(description)) {
     updateParams.push(description);
     placeholders.push('description = ?');
   }

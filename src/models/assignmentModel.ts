@@ -1,3 +1,4 @@
+import { isString } from 'lodash-es';
 import { saveNewAssignmentTool } from 'models/assignmentToolModel';
 import { ResultSetHeader } from 'mysql2';
 
@@ -411,7 +412,7 @@ export const updateExistingAssignment = async (
     updateParams.push(type);
     placeholders.push('type = ?');
   }
-  if (instructions) {
+  if (isString(instructions)) {
     updateParams.push(instructions);
     placeholders.push('instructions = ?');
   }
