@@ -14,7 +14,7 @@ const initFormData = (config?: ChatbotConfig | null) => {
       `${config.max_tokens};;;${config.choices};;;${config.temperature}`,
     );
   } else {
-    formData.append('chatgptParameters', '1000;;;1;;;2');
+    formData.append('chatgptParameters', '10000;;;1;;;2');
   }
   return formData;
 };
