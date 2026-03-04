@@ -3,14 +3,15 @@ export interface GptLog {
   user_id: number;
   assignment_tool_id: number;
   user_question: string;
-  gpt_answer: string;
-  whole_prompt: string;
+  gpt_answer?: string | null;
+  whole_prompt?: string | null;
   user_ask_time: number;
   gpt_response_time?: number;
   extra?: string | null;
   prompt_nature_category?: number;
   prompt_aspect_category?: number;
   is_structured: boolean;
+  is_error?: boolean | null;
 }
 
 export interface StudentRevisionExplanation {

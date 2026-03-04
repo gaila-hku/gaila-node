@@ -270,8 +270,9 @@ export const askGptModel = async (req: AuthorizedRequest, res: Response) => {
       rubrics = await fetchRubricsByAssignmentId(assignmentId);
     }
 
+    const userAskTime = Date.now();
+
     try {
-      const userAskTime = Date.now();
       const chatRes = await fetchChatResponse(
         question,
         rolePrompt,
@@ -325,6 +326,18 @@ export const askGptModel = async (req: AuthorizedRequest, res: Response) => {
       return res.json(gptLog);
     } catch (e) {
       console.error(e);
+      await saveNewGptLog(
+        userId,
+        assignmentToolId,
+        question,
+        JSON.stringify(e),
+        null,
+        userAskTime,
+        Date.now(),
+        req.body.extra,
+        false,
+        true,
+      );
       return res.status(500).json({
         error_message: 'ChatGPT error: ' + getErrorMessage(e),
         error_code: 500,
@@ -373,8 +386,9 @@ export const askIdeationGuidingAgent = async (
       throw new Error('Rubrics not found');
     }
 
+    const userAskTime = Date.now();
+
     try {
-      const userAskTime = Date.now();
       const chatRes = await fetchIdeationGuidingAgentResponse(
         question,
         outline,
@@ -430,6 +444,18 @@ export const askIdeationGuidingAgent = async (
 
       return res.json(gptLog);
     } catch (e) {
+      await saveNewGptLog(
+        userId,
+        assignmentToolId,
+        question,
+        JSON.stringify(e),
+        null,
+        userAskTime,
+        Date.now(),
+        req.body.extra,
+        false,
+        true,
+      );
       console.error(e);
       return res.status(500).json({
         error_message: 'ChatGPT error: ' + getErrorMessage(e),
@@ -485,8 +511,9 @@ export const askOutlineReviewAgent = async (
       throw new Error('Current step required');
     }
 
+    const userAskTime = Date.now();
+
     try {
-      const userAskTime = Date.now();
       const chatRes = await fetchOutlineReviewAgentResponse(
         question,
         outline,
@@ -544,6 +571,18 @@ export const askOutlineReviewAgent = async (
       return res.json(gptLog);
     } catch (e) {
       console.error(e);
+      await saveNewGptLog(
+        userId,
+        assignmentToolId,
+        question,
+        JSON.stringify(e),
+        null,
+        userAskTime,
+        Date.now(),
+        req.body.extra,
+        false,
+        true,
+      );
       return res.status(500).json({
         error_message: 'ChatGPT error: ' + getErrorMessage(e),
         error_code: 500,
@@ -587,8 +626,9 @@ export const askDictionaryAgent = async (
       essay = contents.essay;
     }
 
+    const userAskTime = Date.now();
+
     try {
-      const userAskTime = Date.now();
       const chatRes = await fetchDictionaryAgentResponse(
         question,
         outline,
@@ -642,6 +682,18 @@ export const askDictionaryAgent = async (
       return res.json(gptLog);
     } catch (e) {
       console.error(e);
+      await saveNewGptLog(
+        userId,
+        assignmentToolId,
+        question,
+        JSON.stringify(e),
+        null,
+        userAskTime,
+        Date.now(),
+        req.body.extra,
+        false,
+        true,
+      );
       return res.status(500).json({
         error_message: 'ChatGPT error: ' + getErrorMessage(e),
         error_code: 500,
@@ -682,8 +734,9 @@ export const askGrammarAgent = async (
       assignmentId,
     );
 
+    const userAskTime = Date.now();
+
     try {
-      const userAskTime = Date.now();
       const chatRes = await fetchGrammarAgentResponse(
         question,
         rolePrompt,
@@ -739,6 +792,18 @@ export const askGrammarAgent = async (
       return res.json(gptLog);
     } catch (e) {
       console.error(e);
+      await saveNewGptLog(
+        userId,
+        assignmentToolId,
+        question,
+        JSON.stringify(e),
+        null,
+        userAskTime,
+        Date.now(),
+        req.body.extra,
+        false,
+        true,
+      );
       return res.status(500).json({
         error_message: 'ChatGPT error: ' + getErrorMessage(e),
         error_code: 500,
@@ -790,8 +855,9 @@ export const askAutogradeAgent = async (
       throw new Error('Rubrics not found');
     }
 
+    const userAskTime = Date.now();
+
     try {
-      const userAskTime = Date.now();
       const chatRes = await fetchAutogradeAgentResponse(
         question,
         rolePrompt,
@@ -847,6 +913,18 @@ export const askAutogradeAgent = async (
       return res.json(gptLog);
     } catch (e) {
       console.error(e);
+      await saveNewGptLog(
+        userId,
+        assignmentToolId,
+        question,
+        JSON.stringify(e),
+        null,
+        userAskTime,
+        Date.now(),
+        req.body.extra,
+        false,
+        true,
+      );
       return res.status(500).json({
         error_message: 'ChatGPT error: ' + getErrorMessage(e),
         error_code: 500,
@@ -902,8 +980,9 @@ export const askRevisionAgent = async (
 
     const checklist = safeJsonParse(assignment.checklist || '[]') || [];
 
+    const userAskTime = Date.now();
+
     try {
-      const userAskTime = Date.now();
       const chatRes = await fetchRevisionAgentResponse(
         question,
         rolePrompt,
@@ -962,6 +1041,18 @@ export const askRevisionAgent = async (
       return res.json(gptLog);
     } catch (e) {
       console.error(e);
+      await saveNewGptLog(
+        userId,
+        assignmentToolId,
+        question,
+        JSON.stringify(e),
+        null,
+        userAskTime,
+        Date.now(),
+        req.body.extra,
+        false,
+        true,
+      );
       return res.status(500).json({
         error_message: 'ChatGPT error: ' + getErrorMessage(e),
         error_code: 500,
@@ -1480,8 +1571,9 @@ export const generateVocab = async (req: AuthorizedRequest, res: Response) => {
       ),
     );
 
+    const userAskTime = Date.now();
+
     try {
-      const userAskTime = Date.now();
       const chatRes = await fetchVocabGenerationResponse(
         rolePrompt,
         JSON.stringify(rubrics),
@@ -1527,6 +1619,18 @@ export const generateVocab = async (req: AuthorizedRequest, res: Response) => {
       return res.json(gptLog);
     } catch (e) {
       console.error(e);
+      await saveNewGptLog(
+        userId,
+        assignmentToolId,
+        'VOCAB_GENERATE',
+        JSON.stringify(e),
+        null,
+        userAskTime,
+        Date.now(),
+        req.body.extra,
+        false,
+        true,
+      );
       return res.status(500).json({
         error_message: 'ChatGPT error: ' + getErrorMessage(e),
         error_code: 500,
@@ -1648,8 +1752,9 @@ export const generateDashboard = async (
         gpt_answer: log.gpt_answer,
       }));
 
+    const userAskTime = Date.now();
+
     try {
-      const userAskTime = Date.now();
       const chatRes = await fetchDashboardbGenerationResponse(
         rolePrompt,
         taskDescription || '',
@@ -1709,6 +1814,18 @@ export const generateDashboard = async (
       });
     } catch (e) {
       console.error(e);
+      await saveNewGptLog(
+        userId,
+        assignmentToolId,
+        'DASHBOARD_GENERATE',
+        JSON.stringify(e),
+        null,
+        userAskTime,
+        Date.now(),
+        req.body.extra,
+        false,
+        true,
+      );
       return res.status(500).json({
         error_message: 'ChatGPT error: ' + getErrorMessage(e),
         error_code: 500,

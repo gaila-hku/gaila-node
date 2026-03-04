@@ -78,7 +78,7 @@ const getPlagiarisedSegments = (
   for (const log of gptLogs) {
     // eslint-disable-next-line no-constant-condition
     while (1) {
-      const answer = log.gpt_answer;
+      const answer = log.gpt_answer || '';
       const repeatedText = longestCommonSubstring(essayContent, answer);
       if (repeatedText.length <= 30 || isNull(repeatedText.offset)) {
         break;
