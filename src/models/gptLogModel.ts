@@ -28,7 +28,7 @@ export const fetchLatestGptLogByUserIdToolId = async (
   limit?: number,
 ): Promise<GptLog[]> => {
   const [rows] = await pool.query(
-    `SELECT * FROM gpt_logs WHERE user_id = ? AND assignment_tool_id = ? AND is_error = 0 ORDER BY id DESC LIMIT ?`,
+    `SELECT * FROM gpt_logs WHERE user_id = ? AND assignment_tool_id = ? AND (is_error = 0 OR is_error IS NULL) ORDER BY id DESC LIMIT ?`,
     [userId, toolId, limit || 1],
   );
   return rows as GptLog[];
@@ -40,7 +40,7 @@ export const fetchGptLogsByAssignmentId = async (
   const [rows] = await pool.query(
     `SELECT * FROM gpt_logs
     INNER JOIN assignment_tools ast ON gpt_logs.assignment_tool_id = ast.id
-    WHERE ast.assignment_id = ? AND gpt_logs.is_error = 0`,
+    WHERE ast.assignment_id = ? AND (gpt_logs.is_error = 0 OR gpt_logs.is_error IS NULL)`,
     [assignmentId],
   );
   return rows as GptLog[];
@@ -101,7 +101,7 @@ export const fetchGptLogsByUserIdToolId = async (
   const [rows] = await pool.query(
     `
       SELECT * FROM gpt_logs
-      WHERE user_id = ? AND assignment_tool_id = ? AND is_error = 0
+      WHERE user_id = ? AND assignment_tool_id = ? AND (is_error = 0 OR is_error IS NULL)
       ORDER BY user_ask_time ${ascending ? 'ASC' : 'DESC'} LIMIT ? OFFSET ?
     `,
     [userId, assignment_tool_id, limit, offset],
@@ -120,7 +120,7 @@ export const fetchGptUnstructuredLogsByUserIdToolId = async (
   const [rows] = await pool.query(
     `
       SELECT * FROM gpt_logs
-      WHERE user_id = ? AND assignment_tool_id = ? AND is_structured = 0 AND is_error = 0
+      WHERE user_id = ? AND assignment_tool_id = ? AND is_structured = 0 AND (is_error = 0 OR is_error IS NULL)
       ORDER BY user_ask_time ${ascending ? 'ASC' : 'DESC'} LIMIT ? OFFSET ?
     `,
     [userId, assignment_tool_id, limit, offset],
@@ -136,7 +136,7 @@ export const fetchGptUnstructuredLogsByUserIdAssignmentId = async (
     `
       SELECT * FROM gpt_logs
       INNER JOIN assignment_tools at ON gpt_logs.assignment_tool_id = at.id AND at.assignment_id = ?
-      WHERE user_id = ? AND is_structured = 0 AND is_error = 0
+      WHERE user_id = ? AND is_structured = 0 AND (is_error = 0 OR is_error IS NULL)
       ORDER BY user_ask_time DESC
     `,
     [assignmentId, userId],
@@ -149,7 +149,7 @@ export const fetchLatestStructuredGptLogsByUserIdToolId = async (
   assignmentToolId: number,
 ): Promise<GptLog | null> => {
   const [rows] = await pool.query(
-    `SELECT * FROM gpt_logs WHERE user_id = ? AND assignment_tool_id = ? AND is_structured = 1 AND is_error = 0 ORDER BY user_ask_time DESC LIMIT 1`,
+    `SELECT * FROM gpt_logs WHERE user_id = ? AND assignment_tool_id = ? AND is_structured = 1 AND (is_error = 0 OR is_error IS NULL) ORDER BY user_ask_time DESC LIMIT 1`,
     [userId, assignmentToolId],
   );
   const result = rows as GptLog[];
@@ -161,7 +161,7 @@ export const fetchStructuredGptLogsByUserIdToolId = async (
   assignmentToolId: number,
 ): Promise<GptLog[]> => {
   const [rows] = await pool.query(
-    `SELECT * FROM gpt_logs WHERE user_id = ? AND assignment_tool_id = ? AND is_structured = 1 AND is_error = 0 ORDER BY user_ask_time`,
+    `SELECT * FROM gpt_logs WHERE user_id = ? AND assignment_tool_id = ? AND is_structured = 1 AND (is_error = 0 OR is_error IS NULL) ORDER BY user_ask_time`,
     [userId, assignmentToolId],
   );
   return rows as GptLog[];
@@ -175,7 +175,7 @@ export const fetchLatestLogByUserIdAssignmentId = async (
     `
       SELECT log.* FROM gpt_logs log
       INNER JOIN assignment_tools at ON log.assignment_tool_id = at.id AND at.assignment_id = ?
-      WHERE log.user_id = ? AND log.is_error = 0
+      WHERE log.user_id = ? AND (log.is_error = 0 OR log.is_error IS NULL)
       ORDER BY log.id DESC
       LIMIT 1
     `,
@@ -205,7 +205,7 @@ export const fetchUncategorizedPromptsByAssignmentId = async (
     `
       SELECT log.* FROM gpt_logs log
       INNER JOIN assignment_tools at ON log.assignment_tool_id = at.id AND at.assignment_id = ?
-      WHERE log.is_structured = 0 AND log.is_error = 0 AND log.prompt_nature_category IS NULL AND log.prompt_aspect_category IS NULL
+      WHERE log.is_structured = 0 AND (log.is_error = 0 OR log.is_error IS NULL) AND log.prompt_nature_category IS NULL AND log.prompt_aspect_category IS NULL
     `,
     [assignmentId],
   );
@@ -223,7 +223,7 @@ export const fetchPromptAnalyticsByAssignmentIdUserId = async (
     `
       SELECT COUNT(*) as prompt_count FROM gpt_logs log
       INNER JOIN assignment_tools at ON log.assignment_tool_id = at.id AND at.assignment_id = ?
-      WHERE log.is_structured = 0 AND log.user_id = ? AND log.is_error = 0
+      WHERE log.is_structured = 0 AND log.user_id = ? AND (log.is_error = 0 OR log.is_error IS NULL)
     `,
     [assignmentId, userId],
   );
@@ -235,7 +235,7 @@ export const fetchPromptAnalyticsByAssignmentIdUserId = async (
       SELECT prompt_nature_category as item_key, stage_type, COUNT(*) as count FROM gpt_logs log
       INNER JOIN assignment_tools at ON log.assignment_tool_id = at.id AND at.assignment_id = ?
       INNER JOIN assignment_stages as s ON at.assignment_stage_id = s.id
-      WHERE prompt_nature_category IS NOT NULL AND log.user_id = ? AND log.is_error = 0
+      WHERE prompt_nature_category IS NOT NULL AND log.user_id = ? AND (log.is_error = 0 OR log.is_error IS NULL)
       GROUP BY prompt_nature_category, stage_type
     `,
     [assignmentId, userId],
@@ -246,7 +246,7 @@ export const fetchPromptAnalyticsByAssignmentIdUserId = async (
       SELECT prompt_nature_category as item_key, stage_type, COUNT(*) as count FROM gpt_logs log
       INNER JOIN assignment_tools at ON log.assignment_tool_id = at.id AND at.assignment_id = ?
       INNER JOIN assignment_stages as s ON at.assignment_stage_id = s.id
-      WHERE prompt_nature_category IS NOT NULL AND log.is_error = 0
+      WHERE prompt_nature_category IS NOT NULL AND (log.is_error = 0 OR log.is_error IS NULL)
       GROUP BY prompt_nature_category, stage_type
     `,
     [assignmentId],
@@ -262,7 +262,7 @@ export const fetchPromptAnalyticsByAssignmentIdUserId = async (
       SELECT prompt_aspect_category as item_key, stage_type, COUNT(*) as count FROM gpt_logs log
       INNER JOIN assignment_tools at ON log.assignment_tool_id = at.id AND at.assignment_id = ?
       INNER JOIN assignment_stages as s ON at.assignment_stage_id = s.id
-      WHERE prompt_aspect_category IS NOT NULL AND log.user_id = ? AND log.is_error = 0
+      WHERE prompt_aspect_category IS NOT NULL AND log.user_id = ? AND (log.is_error = 0 OR log.is_error IS NULL)
       GROUP BY prompt_aspect_category, stage_type
     `,
     [assignmentId, userId],
@@ -273,7 +273,7 @@ export const fetchPromptAnalyticsByAssignmentIdUserId = async (
       SELECT prompt_aspect_category as item_key, stage_type, COUNT(*) as count FROM gpt_logs log
       INNER JOIN assignment_tools at ON log.assignment_tool_id = at.id AND at.assignment_id = ?
       INNER JOIN assignment_stages as s ON at.assignment_stage_id = s.id
-      WHERE prompt_aspect_category IS NOT NULL AND log.is_error = 0
+      WHERE prompt_aspect_category IS NOT NULL AND (log.is_error = 0 OR log.is_error IS NULL)
       GROUP BY prompt_aspect_category, stage_type
     `,
     [assignmentId],
@@ -289,7 +289,7 @@ export const fetchPromptAnalyticsByAssignmentIdUserId = async (
       SELECT tool_key as item_key, stage_type, COUNT(*) as count FROM gpt_logs log
       INNER JOIN assignment_tools at ON log.assignment_tool_id = at.id AND at.assignment_id = ?
       INNER JOIN assignment_stages as s ON at.assignment_stage_id = s.id
-      WHERE log.is_structured = 1 AND log.user_id = ? AND log.is_error = 0
+      WHERE log.is_structured = 1 AND log.user_id = ? AND (log.is_error = 0 OR log.is_error IS NULL)
       GROUP BY tool_key, stage_type
     `,
     [assignmentId, userId],
@@ -299,7 +299,7 @@ export const fetchPromptAnalyticsByAssignmentIdUserId = async (
     `
       SELECT tool_key as item_key, COUNT(*) as count FROM gpt_logs log
       INNER JOIN assignment_tools at ON log.assignment_tool_id = at.id AND at.assignment_id = ?
-      WHERE log.is_structured = 1 AND log.is_error = 0
+      WHERE log.is_structured = 1 AND (log.is_error = 0 OR log.is_error IS NULL)
       GROUP BY tool_key
     `,
     [assignmentId, userId],
@@ -341,7 +341,7 @@ export const fetchAgentUsageByAssignmentIdUserId = async (
     `
       SELECT at.id as tool_id, COUNT(*) as count FROM gpt_logs log
       INNER JOIN assignment_tools at ON log.assignment_tool_id = at.id AND at.assignment_id = ?
-      WHERE log.user_id = ? AND log.is_structured = 1 AND log.is_error = 0
+      WHERE log.user_id = ? AND log.is_structured = 1 AND (log.is_error = 0 OR log.is_error IS NULL)
       GROUP BY tool_id
     `,
     [assignmentId, userId],
@@ -354,7 +354,7 @@ export const fetchAgentUsageByAssignmentIdUserId = async (
     `
       SELECT at.id as tool_id, COUNT(*) as count FROM gpt_logs log
       INNER JOIN assignment_tools at ON log.assignment_tool_id = at.id AND at.assignment_id = ?
-      WHERE log.user_id = ? AND log.is_structured = 0 AND log.is_error = 0
+      WHERE log.user_id = ? AND log.is_structured = 0 AND (log.is_error = 0 OR log.is_error IS NULL)
       GROUP BY tool_id
     `,
     [assignmentId, userId],
@@ -410,7 +410,7 @@ export const fetchGptUnstructuredLogListingByUserIdAssignmentId = async (
     `SELECT logs.*, at.tool_key
     FROM gpt_logs logs
     JOIN assignment_tools at ON logs.assignment_tool_id = at.id
-    WHERE user_id = ? AND at.assignment_id = ? AND is_structured = 0 AND is_error = 0
+    WHERE user_id = ? AND at.assignment_id = ? AND is_structured = 0 AND (is_error = 0 OR is_error IS NULL)
     ORDER BY user_ask_time DESC
     LIMIT ? OFFSET ?`,
     [userId, assignmentId, limit, (page - 1) * limit],
@@ -425,7 +425,7 @@ export const fetchGptUnstructuredLogCountByUserIdAssignmentId = async (
   const [rows] = await pool.query(
     `SELECT COUNT(*) FROM gpt_logs logs
     JOIN assignment_tools at ON logs.assignment_tool_id = at.id
-    WHERE user_id = ? AND at.assignment_id = ? AND is_structured = 0 AND is_error = 0`,
+    WHERE user_id = ? AND at.assignment_id = ? AND is_structured = 0 AND (is_error = 0 OR is_error IS NULL)`,
     [userId, assignmentId],
   );
   const result = rows as { 'COUNT(*)': number }[];
